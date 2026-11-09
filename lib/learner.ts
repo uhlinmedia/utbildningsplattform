@@ -1,0 +1,51 @@
+import 'server-only';
+import { cookies } from 'next/headers';
+import { randomBytes } from 'node:crypto';
+import { sql } from './db';
+
+export const enrollmentCookie = (courseId: string) => `enr_${courseId.replace(/-/g, '')}`;
+
+export type Enrollment = {
+  id: string;
+  learner_id: string;
+  name: string;
+  email: string | null;
+  completed_at: Date | null;
+  passed: boolean;
+  is_preview: boolean;
+};
+
+export function newToken() {
+  return randomBytes(32).toString('base64url');
+}
+
+export async function getEnrollment(courseId: string): Promise<Enrollment | null> {
+  const store = await cookies();
+  const token = store.get(enrollmentCookie(courseId))?.value;
+  if (!token) return null;
+  const [e] = await sql<Enrollment[]>`
+    update enrollment e set last_active_at = now()
+    from learner l
+    where e.token = ${token} and e.course_id = ${courseId} and l.id = e.learner_id
+    returning e.id, e.learner_id, l.name, l.email, e.completed_at, e.passed, e.is_preview`;
+  return e ?? null;
+}
+
+export async function setEnrollmentCookie(courseId: string, token: string) {
+  const store = await cookies();
+  store.set(enrollmentCookie(courseId), token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 180,
+  });
+}
+
+// Certifikat-ID utan lättförväxlade tecken, t.ex. K7PM-3XQ9-TA
+export function newCertificateId() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = randomBytes(10);
+  const chars = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+  return `${chars.slice(0, 4)}-${chars.slice(4, 8)}-${chars.slice(8, 10)}`;
+}

@@ -1,0 +1,52 @@
+export type NavMode = 'free' | 'linear' | 'sweep';
+export type AccessMode = 'name' | 'name_email';
+
+export type QuizOption = { id: string; text: string; correct: boolean };
+export type QuizContent = {
+  question: string;
+  kind: 'single' | 'multi';
+  options: QuizOption[];
+  explanation?: string;
+};
+export type TextContent = { markdown: string };
+export type TipContent = { text: string };
+export type ImageContent = { media_id?: string; alt?: string; caption?: string };
+export type VideoContent = { vimeo_id?: string; vimeo_hash?: string; required_percent?: number; title?: string };
+
+export type Block =
+  | { id: string; position: number; type: 'text'; content: TextContent }
+  | { id: string; position: number; type: 'tip'; content: TipContent }
+  | { id: string; position: number; type: 'image'; content: ImageContent }
+  | { id: string; position: number; type: 'video'; content: VideoContent }
+  | { id: string; position: number; type: 'quiz'; content: QuizContent };
+
+export type Section = { id: string; title: string; position: number; blocks: Block[] };
+export type Chapter = { id: string; title: string; position: number; sections: Section[] };
+
+export type Course = {
+  id: string;
+  customer_id: string;
+  title: string;
+  slug: string;
+  description: string;
+  access_mode: AccessMode;
+  nav_mode: NavMode;
+  pass_percent: number;
+  max_attempts: number;
+  show_answers: boolean;
+  certificate_enabled: boolean;
+  cert_signer: string;
+  cert_valid_months: number | null;
+  status: 'draft' | 'published';
+  closes_at: string | null;
+};
+
+export type Customer = {
+  id: string;
+  name: string;
+  color: string;
+  logo_media_id: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  retention_months: number;
+};
