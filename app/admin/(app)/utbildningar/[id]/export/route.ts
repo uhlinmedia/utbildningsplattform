@@ -12,7 +12,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { kpi, funnel, questions, learners, sectionCount } = await getCourseStats(id);
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Utbildningsplattform';
+  wb.creator = 'Briondo';
   const date = new Date().toLocaleDateString('sv-SE');
 
   const sum = wb.addWorksheet('Sammanfattning');

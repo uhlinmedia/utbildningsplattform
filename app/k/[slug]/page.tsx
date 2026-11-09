@@ -4,6 +4,7 @@ import { getEnrollment } from '@/lib/learner';
 import { isAdmin } from '@/lib/auth';
 import { courseIsOpen } from '@/lib/completion';
 import { startCourse } from '../actions';
+import { Wordmark } from '../../Wordmark';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,6 +70,7 @@ export default async function StartPage({
               </p>
             </>
           )}
+          <div className="powered">Drivs av <Wordmark size={14} /></div>
         </div>
       </div>
     </main>

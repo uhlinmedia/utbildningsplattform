@@ -26,6 +26,8 @@ const fmt = (d: Date) => new Date(d).toLocaleDateString('sv-SE');
 export async function renderCertificatePdf(cert: NonNullable<Awaited<ReturnType<typeof getCertificate>>>) {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Certifikat – ${cert.course_title}`);
+  pdf.setCreator('Briondo');
+  pdf.setProducer('Briondo');
   const page = pdf.addPage([841.89, 595.28]); // A4 liggande
   const { width, height } = page.getSize();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
@@ -88,6 +90,14 @@ export async function renderCertificatePdf(cert: NonNullable<Awaited<ReturnType<
   const qr = await pdf.embedPng(await QRCode.toBuffer(verifyUrl, { margin: 1, width: 240 }));
   page.drawImage(qr, { x: width - 70 - 76, y: base - 6, width: 76, height: 76 });
   page.drawText('Verifiera', { x: width - 70 - 76, y: base - 20, size: 9, font: regular, color: muted });
+
+  // Diskret avsändare längst ner: Brion + do i accentfärg
+  const by = 'Utfärdat via ';
+  const s1 = regular.widthOfTextAtSize(by, 9), s2 = bold.widthOfTextAtSize('Brion', 9), s3 = bold.widthOfTextAtSize('do', 9);
+  const x0 = (width - (s1 + s2 + s3)) / 2;
+  page.drawText(by, { x: x0, y: 38, size: 9, font: regular, color: muted });
+  page.drawText('Brion', { x: x0 + s1, y: 38, size: 9, font: bold, color: ink });
+  page.drawText('do', { x: x0 + s1 + s2, y: 38, size: 9, font: bold, color: rgb(0.055, 0.486, 0.455) });
 
   return pdf.save();
 }

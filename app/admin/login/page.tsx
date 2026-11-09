@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import bcrypt from 'bcryptjs';
 import { sql } from '@/lib/db';
 import { ADMIN_COOKIE, signAdminSession } from '@/lib/session';
+import { Wordmark } from '../../Wordmark';
 
 // Används när kontot inte finns, så att inloggningen tar lika lång tid oavsett.
 const DUMMY_HASH = bcrypt.hashSync('dummy-password-for-timing', 12);
@@ -32,7 +33,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="center-page">
       <form action={login} className="card stack" style={{ width: '100%', maxWidth: 400 }}>
-        <h1>Logga in</h1>
+        <Wordmark size={34} />
+        <h1 style={{ fontSize: 20 }}>Logga in</h1>
         {fel && <p className="error" role="alert">Fel e-post eller lösenord.</p>}
         <label className="field">E-post<input type="email" name="email" autoComplete="username" required /></label>
         <label className="field">Lösenord<input type="password" name="password" autoComplete="current-password" required /></label>
