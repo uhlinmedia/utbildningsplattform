@@ -10,6 +10,8 @@ export const sql =
   globalThis.__sql ??
   postgres(process.env.DATABASE_URL as string, {
     max: 5,
+    // Supabase "Transaction pooler" stödjer inte förberedda frågor
+    prepare: false,
     onnotice: () => {},
     // Supabase kräver SSL i drift
     ssl: process.env.DATABASE_URL?.includes('localhost') ? false : 'require',
