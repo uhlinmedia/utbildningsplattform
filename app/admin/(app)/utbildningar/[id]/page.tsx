@@ -132,7 +132,7 @@ export default async function EditorPage({
           <h1>{course.title} <span className={`badge ${course.status === 'published' ? 'badge-ok' : ''}`}>{course.status === 'published' ? 'Publicerad' : 'Utkast'}</span></h1>
         </div>
         <div className="row">
-          <Link className="btn" href={`/k/${course.slug}?forhandsvisning=1`} target="_blank">Förhandsvisa som elev</Link>
+          <Link className="btn" href={`/k/${course.slug}?forhandsvisning=1`} target="briondo-forhandsvisning">Förhandsvisa som elev</Link>
           <Link className="btn" href={`/admin/utbildningar/${id}/statistik`}>Statistik &amp; dela</Link>
           <form action={setCourseStatus}>
             <input type="hidden" name="id" value={id} />

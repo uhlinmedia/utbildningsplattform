@@ -31,6 +31,20 @@ export async function getEnrollment(courseId: string): Promise<Enrollment | null
   return e ?? null;
 }
 
+// Nollställer en förhandsvisning så att den börjar om från första avsnittet.
+// Gäller bara förhandsvisnings-deltagare – riktiga elevers resultat rörs aldrig.
+export async function resetPreviewProgress(enrollmentId: string) {
+  await sql.begin(async (tx) => {
+    const [e] = await tx<{ id: string }[]>`select id from enrollment where id = ${enrollmentId} and is_preview`;
+    if (!e) return;
+    await tx`delete from answer where enrollment_id = ${enrollmentId}`;
+    await tx`delete from section_progress where enrollment_id = ${enrollmentId}`;
+    await tx`delete from video_progress where enrollment_id = ${enrollmentId}`;
+    await tx`delete from certificate where enrollment_id = ${enrollmentId}`;
+    await tx`update enrollment set completed_at = null, passed = false, score_percent = null where id = ${enrollmentId}`;
+  });
+}
+
 export async function setEnrollmentCookie(courseId: string, token: string) {
   const store = await cookies();
   store.set(enrollmentCookie(courseId), token, {

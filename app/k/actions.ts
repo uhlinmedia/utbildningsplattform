@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { sql } from '@/lib/db';
 import { isAdmin } from '@/lib/auth';
 import { flatSections, getCourseBySlug, getStructure } from '@/lib/course';
-import { getEnrollment, newToken, setEnrollmentCookie } from '@/lib/learner';
+import { getEnrollment, newToken, resetPreviewProgress, setEnrollmentCookie } from '@/lib/learner';
 import { loadProgress } from '@/lib/progress';
 import type { QuizContent } from '@/lib/types';
 import { courseIsOpen } from '@/lib/completion';
@@ -100,5 +100,12 @@ export async function retryCourse(fd: FormData) {
     await tx`delete from section_progress where enrollment_id = ${enrollment.id}`;
     await tx`update enrollment set completed_at = null, passed = false, score_percent = null where id = ${enrollment.id}`;
   });
+  redirect(`/k/${slug}/kurs`);
+}
+
+export async function restartPreview(fd: FormData) {
+  const slug = s(fd, 'slug');
+  const { enrollment } = await context(slug);
+  if (enrollment.is_preview && (await isAdmin())) await resetPreviewProgress(enrollment.id);
   redirect(`/k/${slug}/kurs`);
 }

@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { getCourseBySlug, getCustomer, getStructure } from '@/lib/course';
-import { getEnrollment } from '@/lib/learner';
+import { getEnrollment, resetPreviewProgress } from '@/lib/learner';
 import { isAdmin } from '@/lib/auth';
 import { courseIsOpen } from '@/lib/completion';
 import { startCourse } from '../actions';
@@ -17,7 +17,12 @@ export default async function StartPage({
   if (!course) notFound();
   const preview = forhandsvisning === '1' && (await isAdmin());
   const open = courseIsOpen(course);
-  if ((open || preview) && (await getEnrollment(course.id))) redirect(`/k/${slug}/kurs`);
+  const existing = open || preview ? await getEnrollment(course.id) : null;
+  if (existing) {
+    // Från admin ("Förhandsvisa som elev") börjar förhandsvisningen alltid om från första avsnittet.
+    if (preview && existing.is_preview) await resetPreviewProgress(existing.id);
+    redirect(`/k/${slug}/kurs`);
+  }
   const customer = await getCustomer(course.customer_id);
   const chapters = await getStructure(course.id);
 

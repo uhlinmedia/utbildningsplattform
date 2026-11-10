@@ -5,7 +5,7 @@ import { getEnrollment } from '@/lib/learner';
 import { loadProgress } from '@/lib/progress';
 import { renderMarkdown } from '@/lib/markdown';
 import { vimeoEmbedUrl } from '@/lib/vimeo';
-import { completeSection } from '../../actions';
+import { completeSection, restartPreview } from '../../actions';
 import { QuizBlock } from './QuizBlock';
 import { VideoBlock } from './VideoBlock';
 
@@ -92,6 +92,12 @@ export default async function CoursePage({
           <span>{progress.percentComplete} %</span>
         </div>
         <span className="small">{enrollment.name}{enrollment.is_preview && ' (förhandsvisning)'}</span>
+        {enrollment.is_preview && (
+          <form action={restartPreview}>
+            <input type="hidden" name="slug" value={slug} />
+            <button className="btn btn-sm" type="submit">Börja om</button>
+          </form>
+        )}
       </header>
 
       <div className="learn">
