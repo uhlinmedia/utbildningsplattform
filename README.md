@@ -39,6 +39,7 @@ pip install playwright && playwright install chromium
 npm run build && npm start      # i ett annat fönster
 python3 tests/e2e.py
 python3 tests/certifikat.py   # certifikatdesign, körs efter e2e.py
+python3 tests/forhandsvisning.py   # varning vid osparade ändringar + förhandsvisning, körs efter e2e.py (behöver DATABASE_URL)
 ```
 
 ## Driftsättning (Supabase + Vercel)
