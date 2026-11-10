@@ -34,6 +34,7 @@ export type CertDesign = {
 
 export type CertData = CertDesign & {
   id: string;
+  isTest?: boolean;
   learnerName: string | null;
   issuedAt: Date;
   validUntil: Date | null;
@@ -113,12 +114,12 @@ export async function loadCertDesign(opts: { courseId: string } | { customerId: 
 
 export async function getCertificate(id: string) {
   const [c] = await sql<
-    { id: string; learner_name: string | null; issued_at: Date; valid_until: Date | null; enrollment_id: string | null; course_id: string }[]
-  >`select id, learner_name, issued_at, valid_until, enrollment_id, course_id from certificate where id = ${id}`;
+    { id: string; learner_name: string | null; issued_at: Date; valid_until: Date | null; enrollment_id: string | null; course_id: string; is_test: boolean }[]
+  >`select id, learner_name, issued_at, valid_until, enrollment_id, course_id, is_test from certificate where id = ${id}`;
   if (!c) return null;
   const design = await loadCertDesign({ courseId: c.course_id });
   if (!design) return null;
-  const data: CertData = { ...design, id: c.id, learnerName: c.learner_name, issuedAt: c.issued_at, validUntil: c.valid_until };
+  const data: CertData = { ...design, id: c.id, isTest: c.is_test, learnerName: c.learner_name, issuedAt: c.issued_at, validUntil: c.valid_until };
   return { ...c, data };
 }
 
@@ -655,5 +656,18 @@ export async function renderCertificatePdf(d: CertData) {
   };
   const templates = { klassisk: classic, modern, minimal } as const;
   (templates[d.template] ?? classic)(ctx);
+  if (d.isTest) {
+    // Testcertifikat från förhandsvisning: diagonal stämpel över hela sidan.
+    const label = 'TESTCERTIFIKAT – EJ GILTIGT';
+    const size = 54;
+    const w = fonts.sansBold.widthOfTextAtSize(label, size);
+    const a = (28 * Math.PI) / 180;
+    page.drawText(label, {
+      x: W / 2 - (w / 2) * Math.cos(a) + (size / 3) * Math.sin(a),
+      y: H / 2 - (w / 2) * Math.sin(a) - (size / 3) * Math.cos(a),
+      size, font: fonts.sansBold, color: rgb(0.78, 0.16, 0.16), opacity: 0.22, rotate: degrees(28),
+    });
+    pdf.setTitle(`TEST – ${d.title} – ${d.courseTitle}`);
+  }
   return pdf.save();
 }

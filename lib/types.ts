@@ -49,6 +49,7 @@ export type Course = {
   cert_hidden_badges: string[];
   status: 'draft' | 'published';
   closes_at: string | null;
+  preview_token: string | null;
 };
 
 export type Customer = {

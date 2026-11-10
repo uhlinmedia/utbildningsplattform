@@ -23,10 +23,12 @@ export async function getEnrollment(courseId: string): Promise<Enrollment | null
   const store = await cookies();
   const token = store.get(enrollmentCookie(courseId))?.value;
   if (!token) return null;
+  // En kundförhandsvisning slutar gälla när länken byts ut eller stängs av.
   const [e] = await sql<Enrollment[]>`
     update enrollment e set last_active_at = now()
-    from learner l
-    where e.token = ${token} and e.course_id = ${courseId} and l.id = e.learner_id
+    from learner l, course c
+    where e.token = ${token} and e.course_id = ${courseId} and l.id = e.learner_id and c.id = e.course_id
+      and (e.review_token is null or e.review_token = c.preview_token)
     returning e.id, e.learner_id, l.name, l.email, e.completed_at, e.passed, e.is_preview`;
   return e ?? null;
 }

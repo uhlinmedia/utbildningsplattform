@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import QRCode from 'qrcode';
 import { getCourseById, getCustomer } from '@/lib/course';
 import { getCourseStats, learnerStatus } from '@/lib/stats';
+import { setReviewLink } from '@/app/admin/actions';
 import { CopyLink } from './CopyLink';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,7 @@ export default async function StatsPage({ params }: { params: Promise<{ id: stri
   const { kpi, funnel, questions, learners, sectionCount } = await getCourseStats(id);
   const link = `${process.env.APP_URL ?? ''}/k/${course.slug}`;
   const qr = await QRCode.toDataURL(link, { margin: 1, width: 360 });
+  const reviewLink = course.preview_token ? `${link}?granska=${course.preview_token}` : null;
   const max = Math.max(1, kpi.started);
 
   return (
@@ -101,6 +103,34 @@ export default async function StatsPage({ params }: { params: Promise<{ id: stri
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={qr} alt={`QR-kod till ${link}`} width={160} height={160} />
           <a href={qr} download={`qr-${course.slug}.png`} className="small">Ladda ner QR-kod</a>
+
+          <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '8px 0' }} />
+          <h2 style={{ fontSize: 16 }}>Förhandsvisning för kund</h2>
+          <p className="small muted" style={{ margin: 0 }}>
+            Hemlig länk så att kunden kan gå igenom utbildningen innan den publiceras. Fungerar även för utkast,
+            räknas inte i statistiken och ger bara testcertifikat.
+          </p>
+          {reviewLink ? (
+            <>
+              <CopyLink link={reviewLink} label="Länk till kunden" />
+              <div className="row" style={{ gap: 8 }}>
+                <form action={setReviewLink}>
+                  <input type="hidden" name="id" value={id} />
+                  <button className="btn btn-sm" type="submit">Byt länk</button>
+                </form>
+                <form action={setReviewLink}>
+                  <input type="hidden" name="id" value={id} /><input type="hidden" name="action" value="off" />
+                  <button className="btn btn-sm btn-danger" type="submit">Stäng av</button>
+                </form>
+              </div>
+              <p className="small muted" style={{ margin: 0 }}>Byt länk eller stäng av när granskningen är klar – den gamla länken slutar då fungera.</p>
+            </>
+          ) : (
+            <form action={setReviewLink}>
+              <input type="hidden" name="id" value={id} />
+              <button className="btn btn-sm" type="submit">Skapa förhandsvisningslänk</button>
+            </form>
+          )}
         </aside>
       </div>
     </>

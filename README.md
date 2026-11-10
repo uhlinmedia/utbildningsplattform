@@ -40,6 +40,7 @@ npm run build && npm start      # i ett annat fönster
 python3 tests/e2e.py
 python3 tests/certifikat.py   # certifikatdesign, körs efter e2e.py
 python3 tests/forhandsvisning.py   # varning vid osparade ändringar + förhandsvisning, körs efter e2e.py (behöver DATABASE_URL)
+python3 tests/kundgranskning.py    # förhandsvisningslänk för kund, körs efter e2e.py (behöver DATABASE_URL och pypdf)
 ```
 
 ## Driftsättning (Supabase + Vercel)

@@ -10,17 +10,21 @@ export const dynamic = 'force-dynamic';
 
 export default async function StartPage({
   params, searchParams,
-}: { params: Promise<{ slug: string }>; searchParams: Promise<{ fel?: string; forhandsvisning?: string }> }) {
+}: { params: Promise<{ slug: string }>; searchParams: Promise<{ fel?: string; forhandsvisning?: string; granska?: string }> }) {
   const { slug } = await params;
-  const { fel, forhandsvisning } = await searchParams;
+  const { fel, forhandsvisning, granska } = await searchParams;
   const course = await getCourseBySlug(slug);
   if (!course) notFound();
-  const preview = forhandsvisning === '1' && (await isAdmin());
+  // Kund med förhandsvisningslänk (?granska=…) eller superadmin från admin (?forhandsvisning=1).
+  const review = !!granska && granska === course.preview_token;
+  const reviewInvalid = !!granska && !review;
+  const adminPreview = forhandsvisning === '1' && (await isAdmin());
+  const preview = review || adminPreview;
   const open = courseIsOpen(course);
   const existing = open || preview ? await getEnrollment(course.id) : null;
   if (existing) {
     // Från admin ("Förhandsvisa som elev") börjar förhandsvisningen alltid om från första avsnittet.
-    if (preview && existing.is_preview) await resetPreviewProgress(existing.id);
+    if (adminPreview && existing.is_preview) await resetPreviewProgress(existing.id);
     redirect(`/k/${slug}/kurs`);
   }
   const customer = await getCustomer(course.customer_id);
@@ -40,11 +44,17 @@ export default async function StartPage({
           </div>
         </div>
         <div className="start-body">
-          {!open && !preview ? (
+          {reviewInvalid ? (
+            <p className="error" role="alert">Förhandsvisningslänken är inte längre aktiv. Kontakta den som skickade länken.</p>
+          ) : !open && !preview ? (
             <p className="error" role="alert">Utbildningen är inte öppen just nu. Kontakta den som skickade länken.</p>
           ) : (
             <>
-              {preview && <p className="notice">Förhandsvisning – räknas inte i statistiken.</p>}
+              {preview && (
+                <p className="notice">
+                  Förhandsvisning – räknas inte i statistiken.{course.certificate_enabled && ' Certifikatet blir ett testcertifikat.'}
+                </p>
+              )}
               <div className="row" style={{ gap: 8 }}>
                 <span className="chip">{chapters.length} {chapters.length === 1 ? 'kapitel' : 'kapitel'}</span>
                 {course.certificate_enabled && <span className="chip">Certifikat</span>}
@@ -52,7 +62,8 @@ export default async function StartPage({
               {course.description && <p style={{ margin: 0 }}>{course.description}</p>}
               <form action={startCourse} className="stack" style={{ gap: 14 }}>
                 <input type="hidden" name="slug" value={slug} />
-                {preview && <input type="hidden" name="preview" value="1" />}
+                {adminPreview && <input type="hidden" name="preview" value="1" />}
+                {review && <input type="hidden" name="granska" value={granska} />}
                 {fel && (
                   <p className="error" role="alert">
                     {fel === 'epost' ? 'Skriv en giltig e-postadress.' : 'Skriv ditt namn.'}

@@ -29,7 +29,7 @@ export default async function DonePage({ params }: { params: Promise<{ slug: str
             <p className="muted" style={{ margin: 0 }}>Resultat: {progress.scorePercent} % rätt (gräns {course.pass_percent} %)</p>
             {certificateId && (
               <a className="btn btn-primary" href={`/certifikat/${certificateId}`} style={{ minHeight: 52 }}>
-                Ladda ner certifikat (PDF)
+                {enrollment.is_preview ? 'Ladda ner testcertifikat (PDF)' : 'Ladda ner certifikat (PDF)'}
               </a>
             )}
             {certificateId && <p className="small muted" style={{ margin: 0 }}>Certifikat-ID: {certificateId}</p>}

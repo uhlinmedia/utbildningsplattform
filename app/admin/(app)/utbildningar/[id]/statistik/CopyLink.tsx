@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 
-export function CopyLink({ link }: { link: string }) {
+export function CopyLink({ link, label = 'Länk till eleverna' }: { link: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <label className="field">Länk till eleverna
+    <label className="field">{label}
       <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
         <input type="text" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ fontSize: 13 }} />
         <button

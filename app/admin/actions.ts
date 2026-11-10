@@ -1,5 +1,6 @@
 'use server';
 
+import { randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
@@ -162,6 +163,15 @@ export async function setCourseStatus(fd: FormData) {
   await requireAdmin();
   const status = s(fd, 'status') === 'published' ? 'published' : 'draft';
   await sql`update course set status = ${status} where id = ${s(fd, 'id')}`;
+  done();
+}
+
+// Förhandsvisningslänk för kund: skapa/byt ut (ny hemlig nyckel) eller stäng av.
+export async function setReviewLink(fd: FormData) {
+  await requireAdmin();
+  const id = s(fd, 'id');
+  const token = s(fd, 'action') === 'off' ? null : randomBytes(18).toString('base64url');
+  await sql`update course set preview_token = ${token} where id = ${id}`;
   done();
 }
 

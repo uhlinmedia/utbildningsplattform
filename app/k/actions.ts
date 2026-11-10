@@ -15,18 +15,22 @@ export async function startCourse(fd: FormData) {
   const slug = s(fd, 'slug');
   const course = await getCourseBySlug(slug);
   if (!course) redirect('/');
-  const preview = fd.get('preview') === '1' && (await isAdmin());
+  const review = s(fd, 'granska');
+  const viaReview = !!review && review === course.preview_token;
+  const preview = viaReview || (fd.get('preview') === '1' && (await isAdmin()));
   if (!preview && !courseIsOpen(course)) redirect(`/k/${slug}`);
   const name = s(fd, 'name').slice(0, 120);
   const email = s(fd, 'email').toLowerCase().slice(0, 200);
-  if (!name) redirect(`/k/${slug}?fel=namn`);
-  if (course.access_mode === 'name_email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) redirect(`/k/${slug}?fel=epost`);
+  const back = (fel: string) => `/k/${slug}?fel=${fel}${viaReview ? `&granska=${encodeURIComponent(review)}` : ''}${preview && !viaReview ? '&forhandsvisning=1' : ''}`;
+  if (!name) redirect(back('namn'));
+  if (course.access_mode === 'name_email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) redirect(back('epost'));
   const token = newToken();
   await sql.begin(async (tx) => {
     const [l] = await tx<{ id: string }[]>`
       insert into learner (customer_id, name, email)
       values (${course.customer_id}, ${name}, ${course.access_mode === 'name_email' ? email : null}) returning id`;
-    await tx`insert into enrollment (learner_id, course_id, token, is_preview) values (${l.id}, ${course.id}, ${token}, ${preview})`;
+    await tx`insert into enrollment (learner_id, course_id, token, is_preview, review_token)
+      values (${l.id}, ${course.id}, ${token}, ${preview}, ${viaReview ? review : null})`;
   });
   await setEnrollmentCookie(course.id, token);
   redirect(`/k/${slug}/kurs`);
@@ -106,6 +110,7 @@ export async function retryCourse(fd: FormData) {
 export async function restartPreview(fd: FormData) {
   const slug = s(fd, 'slug');
   const { enrollment } = await context(slug);
-  if (enrollment.is_preview && (await isAdmin())) await resetPreviewProgress(enrollment.id);
+  // Superadmin och kund med giltig förhandsvisningslänk (getEnrollment har redan kontrollerat länken).
+  if (enrollment.is_preview) await resetPreviewProgress(enrollment.id);
   redirect(`/k/${slug}/kurs`);
 }

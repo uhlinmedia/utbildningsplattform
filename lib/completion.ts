@@ -29,6 +29,8 @@ export async function finalize(courseId: string, enrollmentId: string) {
       await sql`insert into certificate (id, enrollment_id, course_id, learner_name, valid_until)
         values (${certificateId}, ${enrollmentId}, ${courseId}, ${l.name},
           ${course.cert_valid_months ? sql`(current_date + make_interval(months => ${course.cert_valid_months}))::date` : null})`;
+      await sql`update certificate set is_test = true
+        where id = ${certificateId} and exists (select 1 from enrollment where id = ${enrollmentId} and is_preview)`;
     }
   }
   return { progress, certificateId };

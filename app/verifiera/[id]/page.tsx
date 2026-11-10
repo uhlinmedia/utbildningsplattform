@@ -14,8 +14,10 @@ export default async function VerifyPage({ params }: { params: Promise<{ id: str
           <p className="error" role="alert">Det finns inget certifikat med ID {id}.</p>
         ) : (
           <>
-            <p className={expired ? 'error' : 'notice'} role="status">
-              {expired ? 'Certifikatet är äkta men har gått ut.' : 'Certifikatet är äkta och giltigt.'}
+            <p className={expired || cert.is_test ? 'error' : 'notice'} role="status">
+              {cert.is_test
+                ? 'Detta är ett testcertifikat från en förhandsvisning och är inte giltigt.'
+                : expired ? 'Certifikatet är äkta men har gått ut.' : 'Certifikatet är äkta och giltigt.'}
             </p>
             <dl className="stack" style={{ gap: 8, margin: 0 }}>
               <div><dt className="small muted">Namn</dt><dd style={{ margin: 0 }}>{cert.learner_name ?? 'Uppgiften har gallrats enligt dataskyddsregler'}</dd></div>
