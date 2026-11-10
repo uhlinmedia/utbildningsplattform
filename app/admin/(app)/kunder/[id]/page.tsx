@@ -2,11 +2,18 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { sql } from '@/lib/db';
 import { getCustomer } from '@/lib/course';
-import { createCourse, duplicateCourse, updateCustomer } from '../../../actions';
+import { addCertBadge, createCourse, duplicateCourse, updateCertBadge, updateCustomer, updateCustomerCert } from '../../../actions';
+import type { CertBadge } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 const accessLabel = { name: 'Länk + namn', name_email: 'Länk + namn + e-post' } as const;
+
+const templates = [
+  { value: 'klassisk', label: 'Klassisk', hint: 'Ram med guillochémönster, serifftypsnitt och centrerad text – traditionellt diplom' },
+  { value: 'modern', label: 'Modern', hint: 'Färgad sidopanel i kundens profilfärg med logga, sigill och QR-kod' },
+  { value: 'minimal', label: 'Minimal', hint: 'Tunn ram, mycket luft och vänsterställd text' },
+] as const;
 
 export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,6 +25,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
       count(e.id)::int as started, count(e.completed_at)::int as completed
     from course c left join enrollment e on e.course_id = c.id
     where c.customer_id = ${id} group by c.id order by c.created_at`;
+  const badges = await sql<CertBadge[]>`
+    select id, media_id, label, position from cert_badge where customer_id = ${id} order by position, created_at`;
   const allCourses = await sql<{ id: string; title: string; customer: string }[]>`
     select co.id, co.title, cu.name as customer from course co join customer cu on cu.id = co.customer_id order by cu.name, co.title`;
 
@@ -81,6 +90,100 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         )}
       </section>
 
+
+      <section className="card stack" id="certifikat">
+        <div className="stack" style={{ gap: 4 }}>
+          <h2>Certifikatets utseende</h2>
+          <p className="muted small" style={{ margin: 0 }}>Gäller alla kundens utbildningar. Texter och underskrifter ställs in per utbildning under Inställningar.</p>
+        </div>
+        <div className="cert-settings">
+          <div className="stack">
+            <form action={updateCustomerCert} className="stack">
+              <input type="hidden" name="id" value={id} />
+              <fieldset className="stack" style={{ gap: 8 }}>
+                <legend className="field-legend">Mall</legend>
+                {templates.map((t) => (
+                  <label key={t.value} className="choice">
+                    <input type="radio" name="cert_template" value={t.value} defaultChecked={customer.cert_template === t.value} />
+                    <span><strong>{t.label}</strong><span className="hint">{t.hint}</span></span>
+                  </label>
+                ))}
+              </fieldset>
+              <div className="row" style={{ alignItems: 'flex-end' }}>
+                <label className="field">Dekorfärg
+                  <span className="hint">Ram, sigill och linjer</span>
+                  <input type="color" name="cert_accent" defaultValue={customer.cert_accent} style={{ width: 64, height: 44, padding: 2 }} />
+                </label>
+                <label className="field">Loggans storlek
+                  <select name="cert_logo_size" defaultValue={customer.cert_logo_size} style={{ width: 160 }}>
+                    <option value="S">Liten</option>
+                    <option value="M">Mellan</option>
+                    <option value="L">Stor</option>
+                  </select>
+                </label>
+              </div>
+              <p className="hint small" style={{ margin: 0 }}>Profilfärgen och loggan hämtas från kundprofilen nedan.</p>
+              <label className="check"><input type="checkbox" name="cert_seal" defaultChecked={customer.cert_seal} />Visa sigill med kundens namn och årtal</label>
+              <label className="check"><input type="checkbox" name="cert_show_briondo" defaultChecked={customer.cert_show_briondo} />Visa &quot;Utfärdat via Briondo&quot;</label>
+              <div><button className="btn btn-primary" type="submit">Spara utseende</button></div>
+            </form>
+
+            <div className="stack" style={{ gap: 10 }}>
+              <h3>Märken och extra grafik</h3>
+              <p className="muted small" style={{ margin: 0 }}>T.ex. ISO-certifieringar, branschmärken eller partnerloggor. Visas i den ordning de står här, högst sex stycken. Varje utbildning kan välja bort enskilda märken.</p>
+              {badges.length > 0 && (
+                <ul className="badge-list">
+                  {badges.map((b, i) => (
+                    <li key={b.id}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={`/media/${b.media_id}`} alt={b.label || 'Märke'} />
+                      <form action={updateCertBadge} className="row" style={{ gap: 6, flex: 1, flexWrap: 'nowrap', minWidth: 200 }}>
+                        <input type="hidden" name="id" value={b.id} />
+                        <input type="hidden" name="op" value="save" />
+                        <input type="text" name="label" defaultValue={b.label} aria-label="Beskrivning av märket" placeholder="Beskrivning" />
+                        <button className="btn btn-sm" type="submit">Spara</button>
+                      </form>
+                      <div className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
+                        {([['up', '↑', 'Flytta märket uppåt', i === 0], ['down', '↓', 'Flytta märket nedåt', i === badges.length - 1]] as const).map(([op, sym, lbl, dis]) => (
+                          <form key={op} action={updateCertBadge} className="inline-form">
+                            <input type="hidden" name="id" value={b.id} />
+                            <input type="hidden" name="op" value={op} />
+                            <button className="btn btn-sm" type="submit" disabled={dis} aria-label={lbl}>{sym}</button>
+                          </form>
+                        ))}
+                        <form action={updateCertBadge} className="inline-form">
+                          <input type="hidden" name="id" value={b.id} />
+                          <input type="hidden" name="op" value="delete" />
+                          <button className="btn btn-sm btn-danger" type="submit" aria-label={`Ta bort ${b.label || 'märket'}`}>Ta bort</button>
+                        </form>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <form action={addCertBadge} className="row" style={{ alignItems: 'flex-end' }}>
+                <input type="hidden" name="customer_id" value={id} />
+                <label className="field" style={{ flex: '1 1 200px' }}>Fil
+                  <span className="hint">SVG eller PNG med transparent bakgrund blir bäst</span>
+                  <input type="file" name="badge" accept="image/svg+xml,image/png,image/jpeg,image/webp" required />
+                </label>
+                <label className="field" style={{ flex: '1 1 160px' }}>Beskrivning
+                  <input type="text" name="label" placeholder="T.ex. ISO 9001" />
+                </label>
+                <button className="btn" type="submit">+ Lägg till märke</button>
+              </form>
+            </div>
+          </div>
+          <div className="stack" style={{ gap: 8 }}>
+            <div className="row between">
+              <strong className="small">Förhandsvisning med exempeltexter</strong>
+              <a className="small" href={`/admin/certifikat?kund=${id}`} target="_blank" rel="noreferrer">Öppna som PDF</a>
+            </div>
+            <iframe className="cert-preview" src={`/admin/certifikat?kund=${id}&v=${Date.now()}#view=Fit&toolbar=0&navpanes=0`} title="Förhandsvisning av certifikat" />
+          </div>
+        </div>
+      </section>
+
       <section className="card">
         <form action={updateCustomer} className="stack" style={{ maxWidth: 560 }}>
           <h2>Kundprofil</h2>
@@ -91,8 +194,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
               <input type="color" name="color" defaultValue={customer.color} style={{ width: 64, height: 44, padding: 2 }} />
             </label>
             <label className="field" style={{ flex: 1 }}>Logga
-              <span className="hint">PNG, JPG eller WebP, högst 5 MB</span>
-              <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" />
+              <span className="hint">SVG, PNG, JPG eller WebP, högst 5 MB. Används i utbildningen och på certifikatet.</span>
+              <input type="file" name="logo" accept="image/svg+xml,image/png,image/jpeg,image/webp" />
             </label>
             {customer.logo_media_id && (
               // eslint-disable-next-line @next/next/no-img-element

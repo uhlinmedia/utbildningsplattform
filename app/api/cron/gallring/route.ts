@@ -21,9 +21,11 @@ export async function GET(req: Request) {
     await tx`delete from learner where id = any(${ids}::uuid[])`;
     return ids.length;
   });
-  // Bilder som inte längre används av något block eller någon kund tas också bort.
+  // Bilder som inte längre används (block, kundlogga, certifikatmärken, underskrifter) tas också bort.
   await sql`delete from media m where created_at < now() - interval '1 day'
     and not exists (select 1 from customer c where c.logo_media_id = m.id)
+    and not exists (select 1 from cert_badge cb where cb.media_id = m.id)
+    and not exists (select 1 from course co where m.id in (co.cert_signature_media_id, co.cert_signature2_media_id))
     and not exists (select 1 from block b where b.content->>'media_id' = m.id::text)`;
   return Response.json({ gallrade_elever: result });
 }

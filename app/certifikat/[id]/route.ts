@@ -18,7 +18,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
   }
   if (!allowed) return new Response('Ingen behörighet', { status: 403 });
-  const bytes = await renderCertificatePdf(cert);
+  const bytes = await renderCertificatePdf(cert.data);
   return new Response(new Uint8Array(bytes), {
     headers: {
       'Content-Type': 'application/pdf',

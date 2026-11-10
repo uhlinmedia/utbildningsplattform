@@ -37,6 +37,16 @@ export type Course = {
   certificate_enabled: boolean;
   cert_signer: string;
   cert_valid_months: number | null;
+  cert_signer_title: string;
+  cert_signature_media_id: string | null;
+  cert_signer2: string;
+  cert_signer2_title: string;
+  cert_signature2_media_id: string | null;
+  cert_title: string;
+  cert_intro: string;
+  cert_body: string;
+  cert_note: string;
+  cert_hidden_badges: string[];
   status: 'draft' | 'published';
   closes_at: string | null;
 };
@@ -49,4 +59,12 @@ export type Customer = {
   contact_name: string | null;
   contact_email: string | null;
   retention_months: number;
+  cert_template: CertTemplate;
+  cert_accent: string;
+  cert_logo_size: 'S' | 'M' | 'L';
+  cert_seal: boolean;
+  cert_show_briondo: boolean;
 };
+
+export type CertTemplate = 'klassisk' | 'modern' | 'minimal';
+export type CertBadge = { id: string; media_id: string; label: string; position: number };

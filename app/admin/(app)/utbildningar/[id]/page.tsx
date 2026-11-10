@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getCourseById, getCustomer, getStructure } from '@/lib/course';
-import type { Block } from '@/lib/types';
+import { sql } from '@/lib/db';
+import type { Block, CertBadge } from '@/lib/types';
 import {
   addBlock, addChapter, addSection, deleteCourse, deleteItem, moveItem, renameItem, setCourseStatus, updateBlock,
   updateCourseSettings,
@@ -116,6 +117,8 @@ export default async function EditorPage({
   const course = await getCourseById(id);
   if (!course) notFound();
   const customer = await getCustomer(course.customer_id);
+  const badges = await sql<CertBadge[]>`
+    select id, media_id, label, position from cert_badge where customer_id = ${course.customer_id} order by position, created_at`;
   const chapters = await getStructure(id);
   const allSections = chapters.flatMap((c) => c.sections.map((x) => ({ ...x, chapter: c })));
   const current = allSections.find((x) => x.id === s) ?? allSections[0];
@@ -171,13 +174,71 @@ export default async function EditorPage({
               <label className="field">Öppen till och med<input type="date" name="closes_at" defaultValue={course.closes_at ? String(course.closes_at).slice(0, 10) : ''} /></label>
             </div>
             <label className="check"><input type="checkbox" name="show_answers" defaultChecked={course.show_answers} />Visa rätt svar och förklaring när försöken är slut</label>
-            <label className="check"><input type="checkbox" name="certificate_enabled" defaultChecked={course.certificate_enabled} />Utfärda certifikat vid godkänd utbildning</label>
-            <div className="row">
-              <label className="field" style={{ flex: 1 }}>Undertecknare på certifikat<input type="text" name="cert_signer" defaultValue={course.cert_signer} placeholder="Namn, titel" /></label>
-              <label className="field">Giltighet (månader)<input type="number" name="cert_valid_months" min={0} defaultValue={course.cert_valid_months ?? ''} placeholder="Ingen" style={{ width: 140 }} /></label>
-            </div>
+            <fieldset className="stack cert-fieldset">
+              <legend className="sr-only">Certifikat</legend>
+              <div className="row between">
+                <h3>Certifikat</h3>
+                <a className="small" href={`/admin/kunder/${course.customer_id}#certifikat`}>Mall, färger och märken ställs in på kunden →</a>
+              </div>
+              <label className="check"><input type="checkbox" name="certificate_enabled" defaultChecked={course.certificate_enabled} />Utfärda certifikat vid godkänd utbildning</label>
+              <div className="row">
+                <label className="field" style={{ flex: '1 1 200px' }}>Rubrik<input type="text" name="cert_title" defaultValue={course.cert_title} maxLength={40} placeholder="Certifikat" /></label>
+                <label className="field">Giltighet (månader)<input type="number" name="cert_valid_months" min={0} defaultValue={course.cert_valid_months ?? ''} placeholder="Ingen" style={{ width: 140 }} /></label>
+              </div>
+              <label className="field">Text före namnet<input type="text" name="cert_intro" defaultValue={course.cert_intro} maxLength={80} /></label>
+              <label className="field">Text före utbildningens namn<input type="text" name="cert_body" defaultValue={course.cert_body} maxLength={100} /></label>
+              <label className="field">Extra rad (valfri)
+                <span className="hint">T.ex. omfattning, poäng eller regelverk: &quot;Omfattning 4 timmar · Enligt AFS 2023:1&quot;</span>
+                <input type="text" name="cert_note" defaultValue={course.cert_note} maxLength={160} />
+              </label>
+              {[
+                { n: '', label: 'Undertecknare 1', name: course.cert_signer, title: course.cert_signer_title, sig: course.cert_signature_media_id },
+                { n: '2', label: 'Undertecknare 2 (valfri)', name: course.cert_signer2, title: course.cert_signer2_title, sig: course.cert_signature2_media_id },
+              ].map((x) => (
+                <fieldset key={x.n} className="signer">
+                  <legend className="field-legend">{x.label}</legend>
+                  <label className="field">Namn<input type="text" name={`cert_signer${x.n}`} defaultValue={x.name} maxLength={80} /></label>
+                  <label className="field">Titel<input type="text" name={`cert_signer${x.n}_title`} defaultValue={x.title} maxLength={80} placeholder="T.ex. Säkerhetschef" /></label>
+                  <label className="field">Underskrift (bild, valfri)
+                    <span className="hint">Inskannad namnteckning, helst PNG eller SVG med transparent bakgrund</span>
+                    <input type="file" name={`cert_signature${x.n}`} accept="image/svg+xml,image/png,image/jpeg,image/webp" />
+                  </label>
+                  {x.sig && (
+                    <div className="stack" style={{ gap: 6 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img className="sig-img" src={`/media/${x.sig}`} alt={`Nuvarande underskrift för ${x.name || x.label}`} />
+                      <label className="check"><input type="checkbox" name={`remove_signature${x.n}`} />Ta bort underskriften</label>
+                    </div>
+                  )}
+                </fieldset>
+              ))}
+              {badges.length > 0 && (
+                <fieldset className="stack" style={{ gap: 8 }}>
+                  <legend className="field-legend">Märken på detta certifikat</legend>
+                  <div className="row">
+                    {badges.map((b) => (
+                      <label key={b.id} className="check">
+                        <input type="checkbox" name="badge_show" value={b.id} defaultChecked={!course.cert_hidden_badges.includes(b.id)} />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={`/media/${b.media_id}`} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                        {b.label || 'Märke'}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+            </fieldset>
             <div><button className="btn btn-primary" type="submit">Spara inställningar</button></div>
           </form>
+          {course.certificate_enabled && (
+            <div className="stack" style={{ gap: 8, marginTop: 28, maxWidth: 820 }}>
+              <div className="row between">
+                <strong className="small">Förhandsvisning av certifikatet (exempelnamn)</strong>
+                <a className="small" href={`/admin/certifikat?utbildning=${id}`} target="_blank" rel="noreferrer">Öppna som PDF</a>
+              </div>
+              <iframe className="cert-preview" src={`/admin/certifikat?utbildning=${id}&v=${Date.now()}#view=Fit&toolbar=0&navpanes=0`} title="Förhandsvisning av certifikat" />
+            </div>
+          )}
           <details style={{ marginTop: 28 }}>
             <summary className="btn-danger">Radera utbildningen</summary>
             <form action={deleteCourse} className="row" style={{ marginTop: 12 }}>

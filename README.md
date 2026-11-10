@@ -9,6 +9,7 @@ Webbaserad plattform för att bygga och leverera utbildningar till kunder: kapit
 | Elevens startsida | `/k/<utbildningens-kortnamn>` |
 | Certifikat (PDF) | `/certifikat/<ID>` |
 | Verifiering | `/verifiera/<ID>` |
+| Förhandsvisning av certifikat | `/admin/certifikat?kund=<id>` eller `?utbildning=<id>` |
 | Gallring (daglig) | `/api/cron/gallring` |
 
 ## Köra lokalt
@@ -22,6 +23,14 @@ npm run create-admin -- du@exempel.se "ett-langt-losenord"
 npm run dev                     # http://localhost:3000
 ```
 
+## Certifikat
+- **Per kund** (Kunder → kund → Certifikatets utseende): mall (Klassisk, Modern, Minimal), dekorfärg, loggans storlek, sigill av/på, "Utfärdat via Briondo" av/på samt märken och extra grafik (t.ex. ISO-certifieringar). Logga och märken får vara SVG, PNG, JPG eller WebP.
+- **Per utbildning** (Inställningar → Certifikat): rubrik, texter, extra rad, upp till två undertecknare med titel och inskannad namnteckning, och vilka av kundens märken som visas.
+- PDF:en ritas med pdf-lib; bilder konverteras med sharp. Typsnitten Cormorant Garamond och Outfit (OFL) ligger i `lib/fonts`.
+
+## Databasmigreringar
+Nya filer i `db/migrations` körs automatiskt när servern startar (`instrumentation.ts`), med ett databaslås så att bara en instans migrerar. `npm run migrate` fungerar fortfarande för manuell körning.
+
 ## Test
 Testet går igenom hela flödet: inloggning, kund, utbildning, innehåll, publicering, elev som genomför med fel och rätt svar, certifikat, verifiering, behörighet, statistik och Excel-export.
 
@@ -29,6 +38,7 @@ Testet går igenom hela flödet: inloggning, kund, utbildning, innehåll, public
 pip install playwright && playwright install chromium
 npm run build && npm start      # i ett annat fönster
 python3 tests/e2e.py
+python3 tests/certifikat.py   # certifikatdesign, körs efter e2e.py
 ```
 
 ## Driftsättning (Supabase + Vercel)

@@ -19,8 +19,8 @@ export default async function VerifyPage({ params }: { params: Promise<{ id: str
             </p>
             <dl className="stack" style={{ gap: 8, margin: 0 }}>
               <div><dt className="small muted">Namn</dt><dd style={{ margin: 0 }}>{cert.learner_name ?? 'Uppgiften har gallrats enligt dataskyddsregler'}</dd></div>
-              <div><dt className="small muted">Utbildning</dt><dd style={{ margin: 0 }}>{cert.course_title}</dd></div>
-              <div><dt className="small muted">Utfärdat av</dt><dd style={{ margin: 0 }}>{cert.customer_name}</dd></div>
+              <div><dt className="small muted">Utbildning</dt><dd style={{ margin: 0 }}>{cert.data.courseTitle}</dd></div>
+              <div><dt className="small muted">Utfärdat av</dt><dd style={{ margin: 0 }}>{cert.data.customerName}</dd></div>
               <div><dt className="small muted">Datum</dt><dd style={{ margin: 0 }}>{new Date(cert.issued_at).toLocaleDateString('sv-SE')}</dd></div>
               {cert.valid_until && <div><dt className="small muted">Giltigt till</dt><dd style={{ margin: 0 }}>{new Date(cert.valid_until).toLocaleDateString('sv-SE')}</dd></div>}
               <div><dt className="small muted">Certifikat-ID</dt><dd style={{ margin: 0 }}>{cert.id}</dd></div>
