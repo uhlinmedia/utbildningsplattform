@@ -510,65 +510,72 @@ function classic(ctx: Ctx) {
 
 function modern(ctx: Ctx) {
   const { c, d, brand, accent } = ctx;
-  const panel = 256;
-  const onBrand = luminance(brand) > 0.45 ? INK : WHITE;
-  const onBrandMuted = mix(onBrand, brand, 0.3);
+  const tint = (t: number) => mix(brand, WHITE, t);
 
-  c.page.drawRectangle({ x: 0, y: 0, width: panel, height: H, color: brand });
-  rosette(c, panel / 2, H / 2 - 10, 150, onBrand, 0.1);
-  c.page.drawRectangle({ x: panel, y: 0, width: 5, height: H, color: accent });
+  // Färgen bärs av en kantlist till vänster och geometriska bågar i övre högra hörnet – loggan står fritt på vitt.
+  c.page.drawRectangle({ x: 0, y: 0, width: 16, height: H, color: brand });
+  c.page.drawRectangle({ x: 16, y: 0, width: 4, height: H, color: accent });
+  const arc = (r: number, width: number, color: RGB) => {
+    const pts: [number, number][] = [];
+    for (let i = 0; i <= 60; i++) { const a = Math.PI + (i / 60) * (Math.PI / 2); pts.push([W + r * Math.cos(a), H + r * Math.sin(a)]); }
+    c.path(poly(pts), { stroke: color, width });
+  };
+  const disc: [number, number][] = [[W, H]];
+  for (let i = 0; i <= 60; i++) { const a = Math.PI + (i / 60) * (Math.PI / 2); disc.push([W + 150 * Math.cos(a), H + 150 * Math.sin(a)]); }
+  c.path(poly(disc, true), { fill: tint(0.9) });
+  arc(185, 10, tint(0.8));
+  arc(215, 1.2, accent);
+  arc(232, 0.6, tint(0.6));
 
-  // Logga på vit platta
+  const x = 78, right = W - 64;
+  const textW = d.seal ? 520 : right - x;
+
+  // Logga med luft runt om
   const box = LOGO_BOX[d.logoSize];
-  const lw = Math.min(box.w, panel - 56), lh = box.h;
+  const logoTop = H - 58;
+  let top: number;
   if (ctx.logo) {
-    const s = Math.min(lw / ctx.logo.width, lh / ctx.logo.height);
-    const w = ctx.logo.width * s, h = ctx.logo.height * s;
-    const px = 28, pw = panel - 56, ph = h + 36, py = H - 40 - ph;
-    c.path(roundRect(px, py, pw, ph, 10), { fill: WHITE });
-    c.page.drawImage(ctx.logo, { x: px + (pw - w) / 2, y: py + 18, width: w, height: h });
+    const r = c.image(ctx.logo, { x, y: logoTop - box.h, w: box.w, h: box.h }, 'left', 'top');
+    top = r.y - 58;
   } else {
-    const r = c.fit(d.customerName, 'sansBold', 22, 12, panel - 56, 3);
-    r.rows.forEach((row, k) => c.text(row, 28, H - 62 - k * (r.size + 4), { font: 'sansBold', size: r.size, color: onBrand }));
+    c.text(d.customerName, x, logoTop - 20, { font: 'sansBold', size: 20, color: INK });
+    top = logoTop - 78;
   }
-  if (d.seal) seal(c, panel / 2, H / 2 - 10, 50, accent, luminance(accent) > 0.45 ? INK : WHITE, sealRing(d), String(new Date(d.issuedAt).getFullYear()));
-
-  // QR på vit platta + meta
-  c.path(roundRect(28, 44, 74, 74, 8), { fill: WHITE });
-  c.page.drawImage(ctx.qr, { x: 33, y: 49, width: 64, height: 64 });
-  const meta = metaLines(d);
-  meta.forEach((l, k) => c.text(l, 114, 104 - k * 12, { font: 'sans', size: 8.5, color: onBrand }));
-  c.text('Skanna för att verifiera', 114, 104 - meta.length * 12, { font: 'sans', size: 8.5, color: onBrandMuted });
 
   // Text
-  const x = panel + 52, maxW = W - x - 56;
-  let top = H - 92;
-  c.page.drawRectangle({ x, y: top + 20, width: 42, height: 4, color: accent });
-  c.text(d.title.toUpperCase(), x, top, { font: 'sansSemi', size: 14, color: ctx.brandText, tracking: 4 });
-  top -= 46;
+  c.page.drawRectangle({ x, y: top + 18, width: 36, height: 3.5, color: accent });
+  c.text(d.title.toUpperCase(), x, top, { font: 'sansSemi', size: 13, color: ctx.brandText, tracking: 4 });
+  top -= 40;
   c.text(d.intro, x, top, { font: 'sans', size: 14, color: MUTED });
   const name = d.learnerName ?? '[Uppgift gallrad]';
-  const ns = c.fit(name, 'sansBold', 44, 22, maxW).size;
-  top -= ns + 8;
+  const ns = c.fit(name, 'sansBold', 46, 22, textW).size;
+  top -= ns + 6;
   c.text(name, x, top, { font: 'sansBold', size: ns, color: INK });
-  top -= 30;
+  top -= 28;
   c.text(d.body, x, top, { font: 'sans', size: 14, color: MUTED });
-  const ct = c.fit(d.courseTitle, 'sansSemi', 24, 14, maxW, 2);
+  const ct = c.fit(d.courseTitle, 'sansSemi', 24, 14, textW, 2);
   ct.rows.forEach((row) => {
     top -= ct.size + 6;
     c.text(row, x, top, { font: 'sansSemi', size: ct.size, color: ctx.brandText });
   });
   if (d.note) {
-    top -= 22;
-    const n = c.fit(d.note, 'sans', 10.5, 8.5, maxW);
+    top -= 20;
+    const n = c.fit(d.note, 'sans', 10.5, 8.5, textW);
     c.text(n.rows[0], x, top, { font: 'sans', size: n.size, color: MUTED });
   }
+  if (d.seal) seal(c, right - 62, 300, 54, accent, luminance(accent) > 0.45 ? INK : WHITE, sealRing(d), String(new Date(d.issuedAt).getFullYear()));
 
-  // Underskrifter och märken längst ner
+  // Nederkant: underskrifter till vänster, märken och QR till höger
   const slotW = 180;
-  signers(ctx, d.signers.map((_, k) => ({ x: x + k * (slotW + 30), w: slotW })), 120);
-  badgeRow(ctx, W - 56, 44, 36, maxW, 'right');
-  if (d.showBriondo) briondoLine(c, x, 44, 'left');
+  signers(ctx, d.signers.map((_, k) => ({ x: x + k * (slotW + 28), w: slotW })), 122);
+  c.page.drawLine({ start: { x, y: 82 }, end: { x: right, y: 82 }, thickness: 0.5, color: tint(0.75) });
+  const meta = metaLines(d);
+  meta.forEach((l, k) => c.text(l, x, 68 - k * 11, { font: 'sans', size: 8.5, color: MUTED }));
+  if (d.showBriondo) briondoLine(c, x, 66 - meta.length * 11 - 1, 'left');
+  c.page.drawImage(ctx.qr, { x: right - 52, y: 30, width: 46, height: 46 });
+  c.text('Skanna för att verifiera', right - 60, 34, { font: 'sans', size: 7.5, color: MUTED, align: 'right' });
+  const sigRight = x + Math.max(1, d.signers.length) * (slotW + 28);
+  badgeRow(ctx, right, 96, 40, Math.min(330, right - sigRight - 20), 'right');
 }
 
 function minimal(ctx: Ctx) {

@@ -11,7 +11,7 @@ const accessLabel = { name: 'Länk + namn', name_email: 'Länk + namn + e-post' 
 
 const templates = [
   { value: 'klassisk', label: 'Klassisk', hint: 'Ram med guillochémönster, serifftypsnitt och centrerad text – traditionellt diplom' },
-  { value: 'modern', label: 'Modern', hint: 'Färgad sidopanel i kundens profilfärg med logga, sigill och QR-kod' },
+  { value: 'modern', label: 'Modern', hint: 'Fritt placerad logga, kraftig sans-serif och färgade bågar och kantlist i kundens färger' },
   { value: 'minimal', label: 'Minimal', hint: 'Tunn ram, mycket luft och vänsterställd text' },
 ] as const;
 
