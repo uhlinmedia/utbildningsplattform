@@ -167,3 +167,56 @@ label.choice .hint { font-size: 13px; color: var(--muted); }
 .signer { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
 @media (max-width: 640px) { .signer { grid-template-columns: 1fr; } }
 .signer .sig-img { max-height: 44px; width: auto; }
+
+/* ---------- Kom ihåg att spara (admin) ---------- */
+:root { --unsaved: #b45309; --unsaved-soft: #fff4e5; }
+/* Sparaknappen är dämpad när det inte finns något att spara … */
+form[data-bevakad]:not([data-osparad]):not([data-status]) :is(.btn-primary, .btn-dark)[type=submit] {
+  background: #fff; border-color: var(--line-strong); color: var(--muted); font-weight: 500;
+}
+/* … orange när något är ändrat men inte sparat … */
+form[data-osparad] .btn[type=submit]:not(.btn-danger) {
+  background: var(--unsaved); border-color: var(--unsaved); color: #fff; font-weight: 600;
+}
+form[data-osparad] .btn[type=submit]:not(.btn-danger)::before {
+  content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #fff; margin-right: 8px; vertical-align: 1px;
+}
+/* … och grön med bock en stund efter sparning. */
+form[data-status=sparar] .btn[type=submit]:not(.btn-danger) { opacity: .7; cursor: progress; }
+form[data-status=sparar] .btn[type=submit]:not(.btn-danger)::after { content: ' …'; }
+form[data-status=sparat] .btn[type=submit]:not(.btn-danger) { background: var(--ok); border-color: var(--ok); color: #fff; font-weight: 600; }
+form[data-status=sparat] .btn[type=submit]:not(.btn-danger)::after { content: ' ✓'; }
+
+/* Ändrade fält */
+form [data-andrad]:is(input:not([type=checkbox]):not([type=radio]), textarea, select) {
+  border-color: var(--unsaved); box-shadow: 0 0 0 1px var(--unsaved); background-color: var(--unsaved-soft);
+}
+form label:has(> input[data-andrad]:is([type=checkbox], [type=radio])) {
+  background: var(--unsaved-soft); box-shadow: 0 0 0 1px var(--unsaved); border-radius: 8px;
+}
+.block-card:has(form[data-osparad]) { border-color: var(--unsaved); box-shadow: 0 0 0 1px var(--unsaved); }
+details:has(form[data-osparad]) > summary::after { content: ' ● ej sparat'; color: var(--unsaved); font-size: 12px; font-weight: 600; }
+
+/* Listen längst ned */
+.unsaved-bar {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 50;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: calc(100vw - 32px);
+  padding: 10px 14px; border-radius: 14px; background: var(--ink); color: #fff;
+  box-shadow: 0 8px 28px rgba(20, 32, 43, .28); font-size: 14px;
+}
+.unsaved-bar-title { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.unsaved-dot { width: 9px; height: 9px; border-radius: 50%; background: #f59e0b; }
+.unsaved-chip {
+  font: inherit; font-size: 13px; color: #fff; background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 99px; padding: 4px 12px; cursor: pointer;
+}
+.unsaved-chip:hover { background: rgba(255, 255, 255, .22); }
+.admin-main:has(~ .unsaved-bar) { padding-bottom: 96px; }
+
+/* Rutan när man lämnar sidan */
+.unsaved-dialog { border: 0; border-radius: 14px; padding: 24px; max-width: min(460px, calc(100vw - 32px)); box-shadow: 0 16px 48px rgba(20, 32, 43, .3); }
+.unsaved-dialog::backdrop { background: rgba(20, 32, 43, .45); }
+.unsaved-dialog h2 { font-size: 19px; margin-bottom: 8px; }
+.unsaved-dialog p { margin: 0 0 10px; color: var(--muted); }
+.unsaved-dialog ul { margin: 0 0 20px; padding-left: 20px; }
+.unsaved-dialog li { font-weight: 600; color: var(--unsaved); }

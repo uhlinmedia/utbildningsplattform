@@ -10,6 +10,13 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+// Postgres-kolumnen är av typen date och kommer som Date-objekt; datumfältet vill ha ÅÅÅÅ-MM-DD.
+function dateValue(d: Date | string | null): string {
+  if (!d) return '';
+  if (d instanceof Date) return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  return String(d).slice(0, 10);
+}
+
 function MoveDelete({ table, id, label }: { table: 'chapter' | 'section' | 'block'; id: string; label: string }) {
   return (
     <div className="row" style={{ gap: 4 }}>
@@ -40,7 +47,7 @@ function BlockEditor({ block }: { block: Block }) {
         <span className="badge">{typeLabel[block.type]}</span>
         <MoveDelete table="block" id={block.id} label="blocket" />
       </div>
-      <form action={updateBlock} className="block-body stack">
+      <form action={updateBlock} className="block-body stack" data-namn={`${typeLabel[block.type]}-block`}>
         <input type="hidden" name="id" value={block.id} />
         {block.type === 'text' && (
           <label className="field">Text
@@ -151,7 +158,7 @@ export default async function EditorPage({
 
       {settingsTab ? (
         <section className="card">
-          <form action={updateCourseSettings} className="stack" style={{ maxWidth: 620 }}>
+          <form action={updateCourseSettings} className="stack" style={{ maxWidth: 620 }} data-namn="Inställningar">
             <input type="hidden" name="id" value={id} />
             <label className="field">Utbildningens namn<input type="text" name="title" defaultValue={course.title} required /></label>
             <label className="field">Introduktionstext på startsidan<textarea name="description" defaultValue={course.description} rows={3} /></label>
@@ -171,7 +178,7 @@ export default async function EditorPage({
             <div className="row">
               <label className="field">Godkäntgräns (% rätt)<input type="number" name="pass_percent" min={0} max={100} defaultValue={course.pass_percent} style={{ width: 140 }} /></label>
               <label className="field">Försök per fråga<input type="number" name="max_attempts" min={1} max={10} defaultValue={course.max_attempts} style={{ width: 140 }} /></label>
-              <label className="field">Öppen till och med<input type="date" name="closes_at" defaultValue={course.closes_at ? String(course.closes_at).slice(0, 10) : ''} /></label>
+              <label className="field">Öppen till och med<input type="date" name="closes_at" defaultValue={dateValue(course.closes_at)} /></label>
             </div>
             <label className="check"><input type="checkbox" name="show_answers" defaultChecked={course.show_answers} />Visa rätt svar och förklaring när försöken är slut</label>
             <fieldset className="stack cert-fieldset">
@@ -241,7 +248,7 @@ export default async function EditorPage({
           )}
           <details style={{ marginTop: 28 }}>
             <summary className="btn-danger">Radera utbildningen</summary>
-            <form action={deleteCourse} className="row" style={{ marginTop: 12 }}>
+            <form action={deleteCourse} className="row" style={{ marginTop: 12 }} data-ingen-varning>
               <input type="hidden" name="id" value={id} />
               <label className="field">Skriv RADERA för att bekräfta – all elevdata för utbildningen tas också bort
                 <input type="text" name="confirm" style={{ maxWidth: 200 }} />
@@ -258,7 +265,7 @@ export default async function EditorPage({
                 <details>
                   <summary className="tree-ch">{ci + 1}. {ch.title}</summary>
                   <div className="stack" style={{ gap: 8, padding: '8px 0' }}>
-                    <form action={renameItem} className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+                    <form action={renameItem} className="row" style={{ gap: 6, flexWrap: 'nowrap' }} data-namn={`Kapitelnamn (kapitel ${ci + 1})`}>
                       <input type="hidden" name="table" value="chapter" /><input type="hidden" name="id" value={ch.id} />
                       <input type="text" name="title" defaultValue={ch.title} aria-label="Kapitlets namn" />
                       <button className="btn btn-sm" type="submit">Spara</button>
@@ -286,9 +293,10 @@ export default async function EditorPage({
           <section className="editor-main stack">
             {current ? (
               <>
-                <div className="card stack" style={{ gap: 10 }}>
+                {/* key: rubrikfältet byggs om vid byte av avsnitt, annars ligger förra avsnittets rubrik kvar i fältet */}
+                <div key={current.id} className="card stack" style={{ gap: 10 }}>
                   <span className="small muted">Kapitel: {current.chapter.title}</span>
-                  <form action={renameItem} className="row" style={{ flexWrap: 'nowrap' }}>
+                  <form action={renameItem} className="row" style={{ flexWrap: 'nowrap' }} data-namn="Avsnittets rubrik">
                     <input type="hidden" name="table" value="section" /><input type="hidden" name="id" value={current.id} />
                     <input type="text" name="title" defaultValue={current.title} aria-label="Avsnittets rubrik" style={{ fontSize: 20, fontWeight: 600 }} />
                     <button className="btn btn-sm" type="submit">Spara rubrik</button>

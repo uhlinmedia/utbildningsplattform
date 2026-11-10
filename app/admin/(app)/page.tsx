@@ -15,7 +15,7 @@ export default async function CustomersPage() {
     <>
       <div className="row between">
         <h1>Kunder</h1>
-        <form action={createCustomer} className="row">
+        <form action={createCustomer} className="row" data-namn="Ny kund">
           <label className="sr-only" htmlFor="newcust">Kundens namn</label>
           <input id="newcust" type="text" name="name" placeholder="Namn på ny kund" required style={{ width: 240 }} />
           <button className="btn btn-primary" type="submit">+ Ny kund</button>

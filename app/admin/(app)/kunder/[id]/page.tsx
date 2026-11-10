@@ -40,7 +40,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
       <section className="card stack">
         <div className="row between">
           <h2>Utbildningar</h2>
-          <form action={createCourse} className="row">
+          <form action={createCourse} className="row" data-namn="Ny utbildning">
             <input type="hidden" name="customer_id" value={id} />
             <input type="text" name="title" placeholder="Namn på utbildningen" aria-label="Namn på ny utbildning" required style={{ width: 260 }} />
             <button className="btn btn-dark" type="submit">+ Ny utbildning</button>
@@ -77,7 +77,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         {allCourses.length > 0 && (
           <details>
             <summary>Skapa från befintlig utbildning</summary>
-            <form action={duplicateCourse} className="row" style={{ marginTop: 12 }}>
+            <form action={duplicateCourse} className="row" style={{ marginTop: 12 }} data-ingen-varning>
               <input type="hidden" name="customer_id" value={id} />
               <select name="id" aria-label="Utbildning att kopiera" style={{ maxWidth: 420 }}>
                 {allCourses.map((c) => (
@@ -98,7 +98,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         </div>
         <div className="cert-settings">
           <div className="stack">
-            <form action={updateCustomerCert} className="stack">
+            <form action={updateCustomerCert} className="stack" data-namn="Certifikatets utseende">
               <input type="hidden" name="id" value={id} />
               <fieldset className="stack" style={{ gap: 8 }}>
                 <legend className="field-legend">Mall</legend>
@@ -137,7 +137,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
                     <li key={b.id}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={`/media/${b.media_id}`} alt={b.label || 'Märke'} />
-                      <form action={updateCertBadge} className="row" style={{ gap: 6, flex: 1, flexWrap: 'nowrap', minWidth: 200 }}>
+                      <form action={updateCertBadge} className="row" style={{ gap: 6, flex: 1, flexWrap: 'nowrap', minWidth: 200 }} data-namn={`Märke ${i + 1}: beskrivning`}>
                         <input type="hidden" name="id" value={b.id} />
                         <input type="hidden" name="op" value="save" />
                         <input type="text" name="label" defaultValue={b.label} aria-label="Beskrivning av märket" placeholder="Beskrivning" />
@@ -161,7 +161,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
                   ))}
                 </ul>
               )}
-              <form action={addCertBadge} className="row" style={{ alignItems: 'flex-end' }}>
+              <form action={addCertBadge} className="row" style={{ alignItems: 'flex-end' }} data-namn="Nytt märke">
                 <input type="hidden" name="customer_id" value={id} />
                 <label className="field" style={{ flex: '1 1 200px' }}>Fil
                   <span className="hint">SVG eller PNG med transparent bakgrund blir bäst</span>
@@ -185,7 +185,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
       </section>
 
       <section className="card">
-        <form action={updateCustomer} className="stack" style={{ maxWidth: 560 }}>
+        <form action={updateCustomer} className="stack" style={{ maxWidth: 560 }} data-namn="Kundprofil">
           <h2>Kundprofil</h2>
           <input type="hidden" name="id" value={id} />
           <label className="field">Namn<input type="text" name="name" defaultValue={customer.name} required /></label>

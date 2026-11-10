@@ -26,20 +26,23 @@ with sync_playwright() as p:
     course_url = a.url.split("?")[0]
 
     # --- Kom ihåg att spara ---
-    # Inga falsklarm: från varje admin-sida ska man kunna lämna utan varning när inget ändrats
-    customer_url = None
-    false_alarms = []
-    mode = {"v": "falsklarm"}
     unload = []
     def on_dialog(d):
         if d.type == "beforeunload":
-            unload.append(d.type); d.dismiss(); return
-        if mode["v"] == "falsklarm":
-            false_alarms.append(a.url); d.dismiss(); return
-        dialogs.append(d.message)
-        d.accept() if mode["v"] == "accept" else d.dismiss()
-    dialogs = []
+            unload.append(d.type)
+        d.dismiss()
     a.on("dialog", on_dialog)
+    leave_box = a.locator("dialog.unsaved-dialog")
+    bar = a.locator(".unsaved-bar")
+    content_link = a.get_by_role("link", name="Innehåll", exact=True)
+    def to_settings():
+        a.click("text=Inställningar")
+        a.wait_for_url(re.compile("flik=installningar"))
+    def to_content():
+        content_link.click()
+        a.wait_for_url(re.compile(r"/admin/utbildningar/[0-9a-f-]+(\?s=.*)?$"))
+
+    # Inga falsklarm: från varje admin-sida ska man kunna lämna utan varning när inget ändrats
     a.goto(BASE + "/admin")
     a.locator("a[href^='/admin/kunder/']").first.click()
     a.wait_for_url(re.compile(r"/admin/kunder/"))
@@ -48,70 +51,104 @@ with sync_playwright() as p:
         a.goto(u); a.wait_for_load_state("networkidle")
         a.get_by_role("link", name="Kunder & utbildningar").click()
         a.wait_for_url(BASE + "/admin")
-    assert not false_alarms, false_alarms
     step("inga falsklarm på kund-, innehålls-, inställnings- och statistiksidan")
-    mode["v"] = "accept"
-    a.goto(course_url)
-    a.click("text=Inställningar")
-    a.wait_for_url(re.compile("flik=installningar"))
 
-    # Inga ändringar: ingen varning
-    mode["v"] = "accept"
-    a.get_by_role("link", name="Innehåll", exact=True).click()
-    a.wait_for_url(re.compile(r"/admin/utbildningar/[0-9a-f-]+(\?s=.*)?$"))
-    assert not dialogs, dialogs
-    step("ingen varning utan ändringar")
+    # Byte mellan avsnitt: rubrikfältet visar rätt avsnitt och ingen varning (tidigare falsklarm)
+    a.goto(course_url); a.wait_for_load_state("networkidle")
+    secs = a.locator("a.tree-sec")
+    assert secs.count() >= 2, "testet behöver minst två avsnitt"
+    for _ in range(2):
+        for i in range(secs.count()):
+            name = re.sub(r"^\d+\.\d+ ", "", secs.nth(i).inner_text())
+            secs.nth(i).click()
+            expect(secs.nth(i)).to_have_class(re.compile("active"))
+            expect(a.locator("input[aria-label='Avsnittets rubrik']")).to_have_value(name)
+            a.wait_for_timeout(300)
+            expect(bar).to_have_count(0)
+            expect(leave_box).not_to_be_visible()
+    step("byte mellan avsnitt: rätt rubrik i fältet, ingen varning")
 
-    a.click("text=Inställningar")
-    a.wait_for_url(re.compile("flik=installningar"))
+    # Datum i inställningarna visas och ligger kvar efter sparning (tidigare tomt + falsklarm)
+    to_settings()
+    a.fill("input[name=closes_at]", "2099-06-30")
+    a.click("text=Spara inställningar")
+    expect(a.locator("form[data-status=sparat]")).to_have_count(1)
+    a.goto(course_url + "?flik=installningar")
+    expect(a.locator("input[name=closes_at]")).to_have_value("2099-06-30")
+    a.fill("input[name=closes_at]", "")
+    a.click("text=Spara inställningar")
+    expect(a.locator("form[data-status=sparat]")).to_have_count(1)
+    to_content()
+    expect(leave_box).not_to_be_visible()
+    step("datumfältet visar sparat datum, ingen varning")
+
+    # Inga ändringar: dämpad sparaknapp, ingen list, ingen varning
+    to_settings()
+    save_btn = a.get_by_role("button", name="Spara inställningar")
+    expect(a.locator("form[data-osparad]")).to_have_count(0)
+    expect(bar).to_have_count(0)
+
+    # Ändring: fältet markeras, knappen blir orange, listen visar vad som inte är sparat
     field = a.locator("textarea[name=description]")
     original = field.input_value()
     field.fill(original + " ändrad")
+    expect(field).to_have_attribute("data-andrad", "")
+    expect(a.locator("form[data-osparad]")).to_have_count(1)
+    expect(bar).to_contain_text("Inställningar")
+    a.screenshot(path=os.path.join(os.path.dirname(os.path.abspath(__file__)), "out", "osparat.png"))
 
-    # Avbryt: stannar kvar, texten finns kvar
-    mode["v"] = "dismiss"
-    a.get_by_role("link", name="Innehåll", exact=True).click()
-    a.wait_for_timeout(500)
-    assert len(dialogs) == 1 and "osparade" in dialogs[0], dialogs
+    # Lämna: egen ruta som listar ändringen; Stanna kvar behåller texten
+    to_link = content_link
+    to_link.click()
+    expect(leave_box).to_be_visible()
+    expect(leave_box).to_contain_text("Inställningar")
+    a.screenshot(path=os.path.join(os.path.dirname(os.path.abspath(__file__)), "out", "lamna.png"))
+    leave_box.get_by_role("button", name="Stanna kvar").click()
+    expect(leave_box).not_to_be_visible()
     expect(a).to_have_url(re.compile("flik=installningar"))
     expect(field).to_have_value(original + " ändrad")
-    step("varning vid osparad ändring, Avbryt stannar kvar")
+    step("ändring markeras, rutan listar den, Stanna kvar behåller texten")
 
-    # Ändrar tillbaka: ingen varning
+    # Ändrar tillbaka: markeringen försvinner och ingen varning
     field.fill(original)
-    mode["v"] = "accept"
-    a.get_by_role("link", name="Innehåll", exact=True).click()
-    a.wait_for_url(re.compile(r"/admin/utbildningar/[0-9a-f-]+(\?s=.*)?$"))
-    assert len(dialogs) == 1, dialogs
+    expect(bar).to_have_count(0)
+    to_content()
+    expect(leave_box).not_to_be_visible()
     step("ingen varning när ändringen är återställd")
 
-    # Ändrar och sparar: ingen varning efteråt
-    a.click("text=Inställningar")
-    a.wait_for_url(re.compile("flik=installningar"))
+    # Ändrar och sparar: knappen visar Sparat, ingen varning efteråt
+    to_settings()
     field = a.locator("textarea[name=description]")
     field.fill(original + " sparad")
     a.click("text=Spara inställningar")
-    a.wait_for_load_state("networkidle")
+    expect(a.locator("form[data-status=sparat]")).to_have_count(1)
+    expect(bar).to_have_count(0)
     expect(field).to_have_value(original + " sparad")
-    mode["v"] = "accept"
-    a.get_by_role("link", name="Innehåll", exact=True).click()
-    a.wait_for_url(re.compile(r"/admin/utbildningar/[0-9a-f-]+(\?s=.*)?$"))
-    assert len(dialogs) == 1, dialogs
-    step("ingen varning efter sparat")
+    to_content()
+    expect(leave_box).not_to_be_visible()
+    step("Sparat visas efter sparning, ingen varning efteråt")
 
-    # OK i varningen: lämnar sidan
-    a.click("text=Inställningar")
+    # Block: ändrat block markeras, listen leder dit
+    for i in range(secs.count()):
+        if a.locator(".block-card form textarea, .block-card form input[type=text]").count():
+            break
+        secs.nth(i).click(); a.wait_for_timeout(600)
+    blk = a.locator(".block-card form.block-body:has(textarea, input[type=text])").first
+    blk.locator("textarea, input[type=text]").first.fill("osparad blocktext")
+    expect(a.locator(".block-card:has(form[data-osparad])")).to_have_count(1)
+    expect(bar).to_contain_text("-block")
+    a.screenshot(path=os.path.join(os.path.dirname(os.path.abspath(__file__)), "out", "block-osparat.png"))
+
+    # Lämna utan att spara: går vidare
+    to_settings_link = a.locator("nav >> text=Inställningar")
+    to_settings_link.click()
+    expect(leave_box).to_be_visible()
+    leave_box.get_by_role("button", name="Lämna utan att spara").click()
     a.wait_for_url(re.compile("flik=installningar"))
-    a.locator("textarea[name=description]").fill("osparat")
-    mode["v"] = "accept"
-    a.get_by_role("link", name="Innehåll", exact=True).click()
-    a.wait_for_url(re.compile(r"/admin/utbildningar/[0-9a-f-]+(\?s=.*)?$"))
-    assert len(dialogs) == 2, dialogs
-    step("OK i varningen lämnar sidan")
+    expect(bar).to_have_count(0)
+    step("Lämna utan att spara lämnar sidan")
 
     # Omladdning med osparad ändring: webbläsarens egen varning
-    a.click("text=Inställningar")
-    a.wait_for_url(re.compile("flik=installningar"))
     a.locator("textarea[name=description]").fill("osparat igen")
     try:
         a.reload(timeout=3000)
