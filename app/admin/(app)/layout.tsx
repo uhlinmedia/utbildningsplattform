@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { requireAdmin } from '@/lib/auth';
 import { logout } from '../actions';
 import { Wordmark } from '../../Wordmark';
+import { UnsavedGuard } from '../UnsavedGuard';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();
@@ -15,6 +16,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </form>
       </nav>
       <main className="admin-main">{children}</main>
+      <UnsavedGuard />
     </div>
   );
 }
