@@ -33,7 +33,13 @@ export async function UsersPanel({ me, customerId, q }: {
       {q.fel && <p className="error" role="alert">{q.fel === 'finns' ? 'Det finns redan ett konto med den e-postadressen.' : 'Skriv en giltig e-postadress.'}</p>}
 
       <section className="card stack">
-        <h2>Bjud in användare</h2>
+        <h2>{customerId ? 'Bjud in användare' : 'Bjud in superadmin'}</h2>
+        {!customerId && (
+          <p className="error" role="note" style={{ margin: 0 }}>
+            En superadmin får tillgång till <strong>alla kunder</strong> och all elevdata. Bjud bara in personer som arbetar för Briondo.
+            Kundens egna användare bjuds in under kunden: Kunder &amp; utbildningar → kunden → fliken Användare.
+          </p>
+        )}
         <form action={inviteUser} className="stack" style={{ gap: 12, maxWidth: 640 }} data-namn="Bjud in användare">
           <input type="hidden" name="customer_id" value={customerId ?? ''} />
           <div className="row" style={{ alignItems: 'flex-end' }}>
@@ -51,7 +57,7 @@ export async function UsersPanel({ me, customerId, q }: {
               ))}
             </fieldset>
           )}
-          <div><button className="btn btn-primary" type="submit">Skicka inbjudan</button></div>
+          <div><button className="btn btn-primary" type="submit">{customerId ? 'Skicka inbjudan' : 'Bjud in som superadmin'}</button></div>
           <p className="small muted" style={{ margin: 0 }}>Personen får ett mejl med en länk (gäller 7 dagar) för att välja lösenord och aktivera tvåstegsverifiering.</p>
         </form>
       </section>
