@@ -103,7 +103,7 @@ with sync_playwright() as p:
     a.fill("input[name=opt_text_2]", "Stege")
     a.locator("form:has(input[name=question]) >> text=Spara block").click()
     a.wait_for_load_state("networkidle")
-    a.get_by_role("button", name="Video (Vimeo)", exact=True).click()
+    a.get_by_role("button", name="Video", exact=True).click()
     a.wait_for_selector("input[name=vimeo]")
     a.fill("input[name=vimeo]", "https://vimeo.com/76979871")
     a.locator("form:has(input[name=vimeo]) >> text=Spara block").click()

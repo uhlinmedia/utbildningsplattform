@@ -5,9 +5,11 @@ import { getEnrollment } from '@/lib/learner';
 import { loadProgress } from '@/lib/progress';
 import { renderMarkdown } from '@/lib/markdown';
 import { vimeoEmbedUrl } from '@/lib/vimeo';
+import { youtubeEmbedUrl } from '@/lib/youtube';
 import { completeSection, restartPreview } from '../../actions';
 import { QuizBlock } from './QuizBlock';
 import { VideoBlock } from './VideoBlock';
+import { SlidesBlock } from './SlidesBlock';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,18 +133,39 @@ export default async function CoursePage({
                       {b.content.caption && <figcaption className="small muted" style={{ marginTop: 6 }}>{b.content.caption}</figcaption>}
                     </figure>
                   ) : null;
-                case 'video':
-                  return b.content.vimeo_id ? (
+                case 'video': {
+                  const c = b.content;
+                  const provider = c.vimeo_id ? 'vimeo' : c.youtube_id ? 'youtube' : null;
+                  if (!provider) return null;
+                  return (
                     <VideoBlock
                       key={b.id}
                       slug={slug}
                       blockId={b.id}
-                      src={vimeoEmbedUrl(b.content.vimeo_id, b.content.vimeo_hash)}
-                      title={b.content.title ?? ''}
-                      required={b.content.required_percent ?? 0}
+                      provider={provider}
+                      src={provider === 'vimeo' ? vimeoEmbedUrl(c.vimeo_id!, c.vimeo_hash) : youtubeEmbedUrl(c.youtube_id!, process.env.APP_URL)}
+                      title={c.title ?? ''}
+                      required={c.required_percent ?? 0}
                       initialPercent={progress.videos.get(b.id) ?? 0}
                     />
-                  ) : null;
+                  );
+                }
+                case 'slides': {
+                  const slides = b.content.slides ?? [];
+                  if (slides.length === 0) return null;
+                  return (
+                    <SlidesBlock
+                      key={b.id}
+                      slug={slug}
+                      blockId={b.id}
+                      slides={slides.map((x) => ({ src: `/media/${x.media_id}`, alt: x.alt ?? '' }))}
+                      title={b.content.title ?? ''}
+                      caption={b.content.caption ?? ''}
+                      requireAll={!!b.content.require_all}
+                      initialPercent={progress.videos.get(b.id) ?? 0}
+                    />
+                  );
+                }
                 case 'quiz': {
                   const q = progress.quizzes.get(b.id);
                   const doneQ = !!q && (q.correct || q.exhausted);
@@ -172,7 +195,7 @@ export default async function CoursePage({
             })}
 
             {krav && !state.requirementsMet && (
-              <p className="error" role="alert">Svara på kontrollfrågorna och se videon innan du går vidare.</p>
+              <p className="error" role="alert">Svara på kontrollfrågorna, se videon och bläddra igenom bildspelet innan du går vidare.</p>
             )}
 
             <div className="pager">

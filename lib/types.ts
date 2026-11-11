@@ -11,13 +11,24 @@ export type QuizContent = {
 export type TextContent = { markdown: string };
 export type TipContent = { text: string };
 export type ImageContent = { media_id?: string; alt?: string; caption?: string };
-export type VideoContent = { vimeo_id?: string; vimeo_hash?: string; required_percent?: number; title?: string };
+// En videoblock har antingen en Vimeo- eller en YouTube-video. Finns båda används Vimeo.
+export type VideoContent = {
+  vimeo_id?: string;
+  vimeo_hash?: string;
+  youtube_id?: string;
+  required_percent?: number;
+  title?: string;
+};
+// Bildspel: flera bilder i samma yta med pilar, t.ex. sidor från en PDF eller bilder exporterade från PowerPoint.
+export type Slide = { media_id: string; alt?: string };
+export type SlidesContent = { slides?: Slide[]; title?: string; caption?: string; require_all?: boolean };
 
 export type Block =
   | { id: string; position: number; type: 'text'; content: TextContent }
   | { id: string; position: number; type: 'tip'; content: TipContent }
   | { id: string; position: number; type: 'image'; content: ImageContent }
   | { id: string; position: number; type: 'video'; content: VideoContent }
+  | { id: string; position: number; type: 'slides'; content: SlidesContent }
   | { id: string; position: number; type: 'quiz'; content: QuizContent };
 
 export type Section = { id: string; title: string; position: number; blocks: Block[] };

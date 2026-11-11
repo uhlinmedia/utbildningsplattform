@@ -9,7 +9,8 @@ import { requireAdmin } from '@/lib/auth';
 import { ADMIN_COOKIE } from '@/lib/session';
 import { slugify } from '@/lib/course';
 import { parseVimeo } from '@/lib/vimeo';
-import type { QuizOption } from '@/lib/types';
+import { parseYouTube } from '@/lib/youtube';
+import type { QuizOption, Slide } from '@/lib/types';
 
 const s = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 const done = () => revalidatePath('/admin', 'layout');
@@ -297,6 +298,7 @@ const defaults: Record<string, object> = {
   tip: { text: '' },
   image: {},
   video: { required_percent: 0 },
+  slides: { slides: [], require_all: false },
   quiz: {
     question: '',
     kind: 'single',
@@ -320,7 +322,7 @@ export async function addBlock(fd: FormData) {
 
 export async function updateBlock(fd: FormData) {
   await requireAdmin();
-  const id = s(fd, 'id');
+  const id = s(fd, 'block_id') || s(fd, 'id');
   const [b] = await sql<{ type: string; content: Record<string, unknown> }[]>`select type, content from block where id = ${id}`;
   if (!b) return;
   let content: Record<string, unknown> = {};
@@ -337,12 +339,32 @@ export async function updateBlock(fd: FormData) {
       break;
     }
     case 'video': {
+      // Två fält under samma block: Vimeo och YouTube. Finns båda används Vimeo i elevvyn.
       const v = parseVimeo(s(fd, 'vimeo'));
+      const y = parseYouTube(s(fd, 'youtube'));
       content = {
         ...(v ?? {}),
+        ...(y ?? {}),
         title: s(fd, 'title'),
         required_percent: Math.min(100, Math.max(0, Number(fd.get('required_percent')) || 0)),
       };
+      break;
+    }
+    case 'slides': {
+      // Bildtexter per bild, ordning och borttagning sparas i samma formulär (knapparna skickar op=up:3 osv.).
+      let slides: Slide[] = ((b.content.slides as Slide[] | undefined) ?? []).map((x, i) => ({
+        media_id: x.media_id,
+        alt: fd.has(`alt_${i}`) ? s(fd, `alt_${i}`).slice(0, 300) : x.alt ?? '',
+      }));
+      const [op, idxStr] = s(fd, 'op').split(':');
+      const idx = Number(idxStr);
+      if (Number.isInteger(idx) && idx >= 0 && idx < slides.length) {
+        if (op === 'up' && idx > 0) [slides[idx - 1], slides[idx]] = [slides[idx], slides[idx - 1]];
+        if (op === 'down' && idx < slides.length - 1) [slides[idx + 1], slides[idx]] = [slides[idx], slides[idx + 1]];
+        if (op === 'remove') slides = slides.filter((_, i) => i !== idx);
+      }
+      if (op === 'clear') slides = [];
+      content = { slides, title: s(fd, 'title'), caption: s(fd, 'caption'), require_all: fd.get('require_all') === 'on' };
       break;
     }
     case 'quiz': {
@@ -365,5 +387,32 @@ export async function updateBlock(fd: FormData) {
     }
   }
   await sql`update block set content = ${sql.json(content as never)} where id = ${id}`;
+  done();
+}
+
+// Lägger till en bild sist i ett bildspel. Anropas en bild i taget från editorn (även för PDF-sidor som
+// webbläsaren gjort om till bilder), så att varje anrop håller sig under storleksgränsen.
+export async function addSlide(fd: FormData): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  const id = s(fd, 'block_id');
+  try {
+    const media = await saveImage(fd.get('image'));
+    if (!media) return { ok: false, error: 'Ingen bild.' };
+    const slide: Slide = { media_id: media, alt: s(fd, 'alt').slice(0, 300) };
+    const [r] = await sql<{ id: string }[]>`
+      update block set content = jsonb_set(content, '{slides}', coalesce(content->'slides', '[]'::jsonb) || ${sql.json([slide] as never)})
+      where id = ${id} and type = 'slides' returning id`;
+    if (!r) {
+      await sql`delete from media where id = ${media}`;
+      return { ok: false, error: 'Blocket finns inte längre.' };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Uppladdningen misslyckades.' };
+  }
+}
+
+export async function refreshAdmin() {
+  await requireAdmin();
   done();
 }

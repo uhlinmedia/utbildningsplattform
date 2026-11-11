@@ -1,6 +1,6 @@
 # Utbildningsplattform
 
-Webbaserad plattform för att bygga och leverera utbildningar till kunder: kapitel och avsnitt med text, bild, Vimeo-video och kontrollfrågor, certifikat med QR-verifiering, statistik med Excel-export och automatisk GDPR-gallring.
+Webbaserad plattform för att bygga och leverera utbildningar till kunder: kapitel och avsnitt med text, bild, video (Vimeo eller YouTube), bildspel (PDF/PowerPoint som bilder med pilar) och kontrollfrågor, certifikat med QR-verifiering, statistik med Excel-export och automatisk GDPR-gallring.
 
 ## Innehåll
 | Del | Adress |
@@ -41,7 +41,11 @@ python3 tests/e2e.py
 python3 tests/certifikat.py   # certifikatdesign, körs efter e2e.py
 python3 tests/forhandsvisning.py   # varning vid osparade ändringar + förhandsvisning, körs efter e2e.py (behöver DATABASE_URL)
 python3 tests/kundgranskning.py    # förhandsvisningslänk för kund, körs efter e2e.py (behöver DATABASE_URL och pypdf)
+python3 tests/bildspel.py          # YouTube, bildspel från PDF/bilder, bredare innehållsyta, körs efter e2e.py (behöver DATABASE_URL)
 ```
+
+## Bildspel
+Blocket *Bildspel (PDF/PPT)* visar flera bilder i samma yta med pilar, tangentbord, svep och helskärm. En PDF görs om till en bild per sida **i adminens webbläsare** (pdf.js, 1920 px breda JPG), och varje sida laddas upp för sig så att storleksgränsen för serveranrop aldrig nås. PowerPoint sparas först som PDF. Valfritt krav: eleven måste bläddra igenom alla bilder (sparas i `video_progress` som 100 %).
 
 ## Driftsättning (Supabase + Vercel)
 

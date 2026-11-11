@@ -61,6 +61,10 @@ export async function loadProgress(course: Course, chapters: Chapter[], enrollme
       if (b.type === 'video' && (b.content.required_percent ?? 0) > 0) {
         if ((videos.get(b.id) ?? 0) < (b.content.required_percent ?? 0)) met = false;
       }
+      // Bildspel med krav: alla bilder ska ha visats (sparas som 100 % i video_progress).
+      if (b.type === 'slides' && b.content.require_all && (b.content.slides?.length ?? 0) > 0) {
+        if ((videos.get(b.id) ?? 0) < 100) met = false;
+      }
     }
     const completed = done.has(s.id);
     const unlocked = course.nav_mode === 'free' ? true : previousDone;

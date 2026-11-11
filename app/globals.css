@@ -117,7 +117,10 @@ details > summary { cursor: pointer; font-weight: 600; }
 .learn-nav .sec.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
 .learn-nav .sec.locked { color: var(--muted); }
 .learn-main { flex: 999 1 560px; min-width: 0; padding: 32px clamp(16px, 4vw, 56px) 48px; }
-.learn-content { max-width: 820px; display: flex; flex-direction: column; gap: 24px; }
+/* Bilder, video och bildspel får hela bredden (upp till 1200 px); text, tips och frågor hålls läsbara. */
+.learn-content { max-width: 1200px; display: flex; flex-direction: column; gap: 24px; }
+.learn-content > .tip, .learn-content > .quiz, .learn-content > .error { max-width: 820px; }
+.learn-content > figure img { max-height: 85vh; width: auto; }
 .prose { font-size: 16px; line-height: 1.65; }
 .prose p { margin: 0 0 12px; max-width: 70ch; }
 .prose h2, .prose h3 { margin: 18px 0 8px; }
@@ -220,3 +223,45 @@ details:has(form[data-osparad]) > summary::after { content: ' ● ej sparat'; co
 .unsaved-dialog p { margin: 0 0 10px; color: var(--muted); }
 .unsaved-dialog ul { margin: 0 0 20px; padding-left: 20px; }
 .unsaved-dialog li { font-weight: 600; color: var(--unsaved); }
+
+/* ---------- Bildspel (elev) ---------- */
+.slides { display: flex; flex-direction: column; gap: 10px; }
+.slides-stage {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 16 / 9; max-height: 85vh; border-radius: 12px; overflow: hidden;
+  background: #f1f3f5; border: 1px solid var(--line); outline: none; user-select: none;
+}
+.slides-stage:focus-visible { box-shadow: 0 0 0 3px var(--brand); }
+.slides-stage img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+.slides-stage.is-full { aspect-ratio: auto; max-height: none; border-radius: 0; border: 0; background: #111; }
+.slides-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; border-radius: 50%;
+  display: grid; place-items: center; border: 0; cursor: pointer; background: rgba(20, 32, 43, .55); color: #fff;
+  opacity: .85; transition: opacity .15s, background .15s;
+}
+.slides-arrow svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.slides-arrow:hover, .slides-arrow:focus-visible { opacity: 1; background: var(--brand); }
+.slides-arrow:disabled { opacity: 0; pointer-events: none; }
+.slides-arrow.prev { left: 12px; }
+.slides-arrow.next { right: 12px; }
+.slides-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.slides-count { font-size: 14px; font-weight: 600; }
+.slides-badge { position: absolute; right: 16px; bottom: 16px; padding: 4px 12px; border-radius: 99px; background: rgba(20, 32, 43, .6); color: #fff; font-size: 14px; font-weight: 600; }
+.slides-full { margin-left: auto; }
+.slides-dots { display: flex; flex-wrap: wrap; gap: 6px; }
+.slides-dots button { width: 10px; height: 10px; padding: 0; border-radius: 50%; border: 0; background: var(--line-strong); cursor: pointer; }
+.slides-dots button.seen { background: color-mix(in srgb, var(--brand) 45%, #fff); }
+.slides-dots button.on { background: var(--brand); transform: scale(1.25); }
+@media (max-width: 640px) {
+  .slides-arrow { width: 40px; height: 40px; }
+  .slides-arrow.prev { left: 6px; }
+  .slides-arrow.next { right: 6px; }
+}
+
+/* ---------- Bildspel (admin) ---------- */
+.slide-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.slide-list li { display: grid; grid-template-columns: 28px 120px 1fr auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.slide-list .num { font-weight: 600; color: var(--muted); text-align: center; }
+.slide-list img { width: 120px; height: 68px; object-fit: contain; background: #f1f3f5; border-radius: 6px; }
+@media (max-width: 640px) { .slide-list li { grid-template-columns: 24px 80px 1fr; } .slide-list li > .row { grid-column: 1 / -1; } .slide-list img { width: 80px; height: 45px; } }
+.slide-upload { padding: 12px; border: 1px dashed var(--line-strong); border-radius: 10px; background: #fafbfc; }

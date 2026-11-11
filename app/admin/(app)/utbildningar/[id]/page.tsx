@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getCourseById, getCustomer, getStructure } from '@/lib/course';
 import { sql } from '@/lib/db';
 import type { Block, CertBadge } from '@/lib/types';
+import { SlideUploader } from './SlideUploader';
 import {
   addBlock, addChapter, addSection, deleteCourse, deleteItem, moveItem, renameItem, setCourseStatus, updateBlock,
   updateCourseSettings,
@@ -37,7 +38,7 @@ function MoveDelete({ table, id, label }: { table: 'chapter' | 'section' | 'bloc
 }
 
 const typeLabel: Record<Block['type'], string> = {
-  text: 'Text', tip: 'Tips-ruta', image: 'Bild', video: 'Video (Vimeo)', quiz: 'Kontrollfråga',
+  text: 'Text', tip: 'Tips-ruta', image: 'Bild', video: 'Video', slides: 'Bildspel (PDF/PPT)', quiz: 'Kontrollfråga',
 };
 
 function BlockEditor({ block }: { block: Block }) {
@@ -48,7 +49,8 @@ function BlockEditor({ block }: { block: Block }) {
         <MoveDelete table="block" id={block.id} label="blocket" />
       </div>
       <form action={updateBlock} className="block-body stack" data-namn={`${typeLabel[block.type]}-block`}>
-        <input type="hidden" name="id" value={block.id} />
+        {/* Inte name="id": det skuggar form.id, och då tappar React värdet från knappen som skickade formuläret. */}
+        <input type="hidden" name="block_id" value={block.id} />
         {block.type === 'text' && (
           <label className="field">Text
             <span className="hint"># Rubrik, **fet**, *kursiv*, - punktlista, [länktext](https://…)</span>
@@ -73,15 +75,48 @@ function BlockEditor({ block }: { block: Block }) {
         )}
         {block.type === 'video' && (
           <>
+            <p className="hint" style={{ margin: 0 }}>Fyll i ett av fälten. Om båda är ifyllda visas Vimeo-videon.</p>
             <label className="field">Vimeo-länk
-              <span className="hint">Klistra in länken till videon, t.ex. https://vimeo.com/123456789</span>
+              <span className="hint">T.ex. https://vimeo.com/123456789 – rekommenderas (ingen reklam, ingen spårning)</span>
               <input type="url" name="vimeo" defaultValue={block.content.vimeo_id ? `https://vimeo.com/${block.content.vimeo_id}${block.content.vimeo_hash ? '/' + block.content.vimeo_hash : ''}` : ''} />
+            </label>
+            <label className="field">YouTube-länk
+              <span className="hint">T.ex. https://www.youtube.com/watch?v=… eller https://youtu.be/… – visas via youtube-nocookie.com</span>
+              <input type="text" name="youtube" inputMode="url" defaultValue={block.content.youtube_id ? `https://www.youtube.com/watch?v=${block.content.youtube_id}` : ''} />
             </label>
             <label className="field">Rubrik för skärmläsare<input type="text" name="title" defaultValue={block.content.title ?? ''} /></label>
             <label className="field">Måste ses till (%) innan eleven går vidare
               <span className="hint">0 = inget krav</span>
               <input type="number" name="required_percent" min={0} max={100} defaultValue={block.content.required_percent ?? 0} style={{ maxWidth: 120 }} />
             </label>
+          </>
+        )}
+        {block.type === 'slides' && (
+          <>
+            {/* Enter i ett textfält ska spara blocket, inte trycka på första flytta-knappen. */}
+            <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true">Spara block</button>
+            {(block.content.slides ?? []).length === 0 ? (
+              <p className="small muted" style={{ margin: 0 }}>Inga bilder än. Lägg till en PDF eller bilder nedan.</p>
+            ) : (
+              <ol className="slide-list" aria-label="Bilder i bildspelet">
+                {(block.content.slides ?? []).map((sl, i, all) => (
+                  <li key={sl.media_id}>
+                    <span className="num">{i + 1}</span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/media/${sl.media_id}`} alt="" loading="lazy" />
+                    <input type="text" name={`alt_${i}`} defaultValue={sl.alt ?? ''} aria-label={`Beskrivning av bild ${i + 1} för skärmläsare`} placeholder="Beskrivning för skärmläsare (valfri)" />
+                    <div className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
+                      <button className="btn btn-sm" type="submit" name="op" value={`up:${i}`} disabled={i === 0} aria-label={`Flytta bild ${i + 1} uppåt`}>↑</button>
+                      <button className="btn btn-sm" type="submit" name="op" value={`down:${i}`} disabled={i === all.length - 1} aria-label={`Flytta bild ${i + 1} nedåt`}>↓</button>
+                      <button className="btn btn-sm btn-danger" type="submit" name="op" value={`remove:${i}`} aria-label={`Ta bort bild ${i + 1}`}>Ta bort</button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <label className="field">Rubrik för skärmläsare<input type="text" name="title" defaultValue={block.content.title ?? ''} placeholder="T.ex. Presentation: Informationssäkerhet" /></label>
+            <label className="field">Bildtext under bildspelet (valfri)<input type="text" name="caption" defaultValue={block.content.caption ?? ''} /></label>
+            <label className="check"><input type="checkbox" name="require_all" defaultChecked={!!block.content.require_all} />Eleven måste bläddra igenom alla bilder innan hen går vidare</label>
           </>
         )}
         {block.type === 'quiz' && (
@@ -110,8 +145,17 @@ function BlockEditor({ block }: { block: Block }) {
             <label className="field">Förklaring (visas efter svar, valfri)<input type="text" name="explanation" defaultValue={block.content.explanation ?? ''} /></label>
           </>
         )}
-        <div><button className="btn btn-primary btn-sm" type="submit">Spara block</button></div>
+        <div className="row" style={{ gap: 8 }}>
+          <button className="btn btn-primary btn-sm" type="submit">Spara block</button>
+          {block.type === 'slides' && (block.content.slides ?? []).length > 1 && (
+            <details className="small">
+              <summary>Ta bort alla bilder …</summary>
+              <button className="btn btn-sm btn-danger" type="submit" name="op" value="clear" style={{ marginTop: 6 }}>Ja, ta bort alla {(block.content.slides ?? []).length} bilder</button>
+            </details>
+          )}
+        </div>
       </form>
+      {block.type === 'slides' && <SlideUploader blockId={block.id} count={(block.content.slides ?? []).length} />}
     </div>
   );
 }
@@ -307,7 +351,7 @@ export default async function EditorPage({
                 <div className="card stack" style={{ borderStyle: 'dashed', gap: 10 }}>
                   <span className="small muted">Lägg till block</span>
                   <div className="row" style={{ gap: 8 }}>
-                    {(['text', 'image', 'video', 'tip', 'quiz'] as const).map((t) => (
+                    {(['text', 'image', 'video', 'slides', 'tip', 'quiz'] as const).map((t) => (
                       <form key={t} action={addBlock}>
                         <input type="hidden" name="section_id" value={current.id} /><input type="hidden" name="type" value={t} />
                         <button className="btn btn-sm" type="submit">{typeLabel[t]}</button>
