@@ -2,12 +2,13 @@
 
 import { redirect } from 'next/navigation';
 import { sql } from '@/lib/db';
-import { isAdmin } from '@/lib/auth';
+import { canReadCustomer } from '@/lib/auth';
 import { flatSections, getCourseBySlug, getStructure } from '@/lib/course';
 import { getEnrollment, newToken, resetPreviewProgress, setEnrollmentCookie } from '@/lib/learner';
 import { loadProgress } from '@/lib/progress';
 import type { QuizContent } from '@/lib/types';
 import { courseIsOpen } from '@/lib/completion';
+import { EMAIL_RE, clearPersonCookie, learnerForPerson, sendLoginLink, sessionPerson, type Person } from '@/lib/person';
 
 const s = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 
@@ -17,8 +18,21 @@ export async function startCourse(fd: FormData) {
   if (!course) redirect('/');
   const review = s(fd, 'granska');
   const viaReview = !!review && review === course.preview_token;
-  const preview = viaReview || (fd.get('preview') === '1' && (await isAdmin()));
+  const preview = viaReview || (fd.get('preview') === '1' && (await canReadCustomer(course.customer_id)));
   if (!preview && !courseIsOpen(course)) redirect(`/k/${slug}`);
+  // Personregistret: den inloggade personen startar eller fortsätter (samma deltagande på alla enheter).
+  if (course.access_mode === 'register' && !preview) {
+    const person = await sessionPerson();
+    if (!person || person.customer_id !== course.customer_id) redirect(`/k/${slug}`);
+    const learnerId = await learnerForPerson(person);
+    const [existing] = await sql<{ token: string }[]>`
+      select token from enrollment where learner_id = ${learnerId} and course_id = ${course.id} and not is_preview
+      order by started_at desc limit 1`;
+    const tok = existing?.token ?? newToken();
+    if (!existing) await sql`insert into enrollment (learner_id, course_id, token) values (${learnerId}, ${course.id}, ${tok})`;
+    await setEnrollmentCookie(course.id, tok);
+    redirect(`/k/${slug}/kurs`);
+  }
   const name = s(fd, 'name').slice(0, 120);
   const email = s(fd, 'email').toLowerCase().slice(0, 200);
   const back = (fel: string) => `/k/${slug}?fel=${fel}${viaReview ? `&granska=${encodeURIComponent(review)}` : ''}${preview && !viaReview ? '&forhandsvisning=1' : ''}`;
@@ -113,4 +127,24 @@ export async function restartPreview(fd: FormData) {
   // Superadmin och kund med giltig förhandsvisningslänk (getEnrollment har redan kontrollerat länken).
   if (enrollment.is_preview) await resetPreviewProgress(enrollment.id);
   redirect(`/k/${slug}/kurs`);
+}
+
+// Utbildning för personregistret: eleven skriver sin e-post och får en inloggningslänk.
+// Samma svar oavsett om adressen finns, så att ingen kan pröva fram vilka som är anställda.
+export async function requestCourseLogin(fd: FormData) {
+  const slug = s(fd, 'slug');
+  const course = await getCourseBySlug(slug);
+  if (!course || course.access_mode !== 'register') redirect('/');
+  const email = s(fd, 'email').toLowerCase().slice(0, 200);
+  if (!EMAIL_RE.test(email)) redirect(`/k/${slug}?fel=epost`);
+  const [p] = await sql<Person[]>`
+    select * from person where customer_id = ${course.customer_id} and email = ${email} and archived_at is null`;
+  if (p) await sendLoginLink(p, `/k/${slug}`);
+  redirect(`/k/${slug}?skickad=1`);
+}
+
+export async function personLogout(fd: FormData) {
+  await clearPersonCookie();
+  const back = s(fd, 'back');
+  redirect(back.startsWith('/k/') ? back : '/mina');
 }

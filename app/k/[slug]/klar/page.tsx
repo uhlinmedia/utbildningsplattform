@@ -47,6 +47,7 @@ export default async function DonePage({ params }: { params: Promise<{ slug: str
           </>
         )}
         <Link href={`/k/${slug}/kurs?s=${firstSection}`} className="small">Tillbaka till innehållet</Link>
+        {course.access_mode === 'register' && !enrollment.is_preview && <Link href="/mina" className="small">Till Mina utbildningar</Link>}
       </div>
     </main>
   );

@@ -1,13 +1,11 @@
 'use server';
 
 import { randomBytes } from 'node:crypto';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import type { TransactionSql } from 'postgres';
 import { sql } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
-import { ADMIN_COOKIE } from '@/lib/session';
+import { audit, authorize, authorizeRole, type Kind } from '@/lib/access';
 import { slugify } from '@/lib/course';
 import { parseVimeo } from '@/lib/vimeo';
 import { parseYouTube } from '@/lib/youtube';
@@ -33,25 +31,20 @@ async function saveImage(file: FormDataEntryValue | null, allowSvg = false): Pro
   return m.id;
 }
 
-export async function logout() {
-  const store = await cookies();
-  store.delete(ADMIN_COOKIE);
-  redirect('/admin/login');
-}
-
 /* ---------- Kunder ---------- */
 
 export async function createCustomer(fd: FormData) {
-  await requireAdmin();
+  const user = await authorizeRole('super');
   const name = s(fd, 'name');
   if (!name) return;
   const [c] = await sql<{ id: string }[]>`insert into customer (name) values (${name}) returning id`;
+  await audit(user, c.id, 'kund_skapad', { name });
   done();
   redirect(`/admin/kunder/${c.id}`);
 }
 
 export async function updateCustomer(fd: FormData) {
-  await requireAdmin();
+  const { user } = await authorize('customer', s(fd, 'id'), 'admin');
   const id = s(fd, 'id');
   const retention = [12, 24, 36].includes(Number(fd.get('retention_months'))) ? Number(fd.get('retention_months')) : 24;
   const color = /^#[0-9a-fA-F]{6}$/.test(s(fd, 'color')) ? s(fd, 'color') : '#0E6B66';
@@ -59,16 +52,18 @@ export async function updateCustomer(fd: FormData) {
   await sql`update customer set
       name = ${s(fd, 'name')}, color = ${color},
       contact_name = ${s(fd, 'contact_name') || null}, contact_email = ${s(fd, 'contact_email') || null},
-      retention_months = ${retention}
+      ${user.role === 'superadmin' ? sql`retention_months = ${retention},` : sql``}
+      id = id
       ${logo ? sql`, logo_media_id = ${logo}` : sql``}
     where id = ${id}`;
+  await audit(user, id, 'kundprofil_sparad');
   done();
 }
 
 const hexColor = (v: string, fallback: string) => (/^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback);
 
 export async function updateCustomerCert(fd: FormData) {
-  await requireAdmin();
+  await authorize('customer', s(fd, 'id'), 'admin');
   const template = ['klassisk', 'modern', 'minimal'].includes(s(fd, 'cert_template')) ? s(fd, 'cert_template') : 'klassisk';
   const size = ['S', 'M', 'L'].includes(s(fd, 'cert_logo_size')) ? s(fd, 'cert_logo_size') : 'M';
   await sql`update customer set
@@ -79,7 +74,7 @@ export async function updateCustomerCert(fd: FormData) {
 }
 
 export async function addCertBadge(fd: FormData) {
-  await requireAdmin();
+  await authorize('customer', s(fd, 'customer_id'), 'admin');
   const customerId = s(fd, 'customer_id');
   const media = await saveImage(fd.get('badge'), true);
   if (!media) return;
@@ -90,7 +85,7 @@ export async function addCertBadge(fd: FormData) {
 }
 
 export async function updateCertBadge(fd: FormData) {
-  await requireAdmin();
+  await authorize('badge', s(fd, 'id'), 'admin');
   const id = s(fd, 'id');
   const op = s(fd, 'op');
   if (op === 'delete') {
@@ -115,7 +110,7 @@ export async function updateCertBadge(fd: FormData) {
 /* ---------- Utbildningar ---------- */
 
 export async function createCourse(fd: FormData) {
-  await requireAdmin();
+  const { user } = await authorize('customer', s(fd, 'customer_id'), 'edit');
   const customerId = s(fd, 'customer_id');
   const title = s(fd, 'title') || 'Ny utbildning';
   const id = await sql.begin(async (tx) => {
@@ -126,14 +121,15 @@ export async function createCourse(fd: FormData) {
     await tx`insert into section (chapter_id, position, title) values (${ch.id}, 1, 'Välkommen')`;
     return c.id;
   });
+  await audit(user, customerId, 'utbildning_skapad', { course_id: id, title });
   done();
   redirect(`/admin/utbildningar/${id}`);
 }
 
 export async function updateCourseSettings(fd: FormData) {
-  await requireAdmin();
+  await authorize('course', s(fd, 'id'), 'edit');
   const id = s(fd, 'id');
-  const access = s(fd, 'access_mode') === 'name' ? 'name' : 'name_email';
+  const access = ['name', 'name_email', 'register'].includes(s(fd, 'access_mode')) ? s(fd, 'access_mode') : 'name_email';
   const nav = ['free', 'linear', 'sweep'].includes(s(fd, 'nav_mode')) ? s(fd, 'nav_mode') : 'linear';
   const pass = Math.min(100, Math.max(0, Number(fd.get('pass_percent')) || 0));
   const attempts = Math.min(10, Math.max(1, Number(fd.get('max_attempts')) || 3));
@@ -162,15 +158,16 @@ export async function updateCourseSettings(fd: FormData) {
 }
 
 export async function setCourseStatus(fd: FormData) {
-  await requireAdmin();
+  const { user, customerId } = await authorize('course', s(fd, 'id'), 'edit');
   const status = s(fd, 'status') === 'published' ? 'published' : 'draft';
   await sql`update course set status = ${status} where id = ${s(fd, 'id')}`;
+  await audit(user, customerId, status === 'published' ? 'utbildning_publicerad' : 'utbildning_avpublicerad', { course_id: s(fd, 'id') });
   done();
 }
 
 // Förhandsvisningslänk för kund: skapa/byt ut (ny hemlig nyckel) eller stäng av.
 export async function setReviewLink(fd: FormData) {
-  await requireAdmin();
+  await authorize('course', s(fd, 'id'), 'edit');
   const id = s(fd, 'id');
   const token = s(fd, 'action') === 'off' ? null : randomBytes(18).toString('base64url');
   await sql`update course set preview_token = ${token} where id = ${id}`;
@@ -178,16 +175,21 @@ export async function setReviewLink(fd: FormData) {
 }
 
 export async function deleteCourse(fd: FormData) {
-  await requireAdmin();
+  // Raderar även all elevdata och alla certifikat för utbildningen – därför kundadmin.
+  const { user, customerId } = await authorize('course', s(fd, 'id'), 'admin');
   if (s(fd, 'confirm') !== 'RADERA') return;
-  const [c] = await sql<{ customer_id: string }[]>`delete from course where id = ${s(fd, 'id')} returning customer_id`;
+  const [c] = await sql<{ customer_id: string; title: string }[]>`delete from course where id = ${s(fd, 'id')} returning customer_id, title`;
+  await audit(user, customerId, 'utbildning_raderad', { course_id: s(fd, 'id'), title: c?.title });
   done();
   redirect(c ? `/admin/kunder/${c.customer_id}` : '/admin');
 }
 
 // Kopierar struktur och innehåll – inga elevdata.
 export async function duplicateCourse(fd: FormData) {
-  await requireAdmin();
+  // Källan måste gå att läsa och målkunden att redigera (kundanvändare: bara inom den egna kunden).
+  const { user } = await authorize('course', s(fd, 'id'), 'read');
+  const target = s(fd, 'customer_id');
+  await authorize('customer', target, 'edit');
   const srcId = s(fd, 'id');
   const targetCustomer = s(fd, 'customer_id');
   const newId = await sql.begin(async (tx) => {
@@ -217,6 +219,7 @@ export async function duplicateCourse(fd: FormData) {
     }
     return c.id;
   });
+  await audit(user, target, 'utbildning_kopierad', { from: srcId, course_id: newId });
   done();
   redirect(`/admin/utbildningar/${newId}`);
 }
@@ -264,7 +267,7 @@ async function moveSectionAcross(tx: TransactionSql, id: string, chapterId: stri
 
 // Flyttar ett avsnitt (med alla block och elevernas framsteg) sist i ett annat kapitel i samma utbildning.
 export async function moveSectionToChapter(fd: FormData) {
-  await requireAdmin();
+  await authorize('section', s(fd, 'section_id'), 'edit');
   const id = s(fd, 'section_id');
   const chapterId = s(fd, 'chapter_id');
   await sql`update section set chapter_id = ${chapterId},
@@ -276,7 +279,9 @@ export async function moveSectionToChapter(fd: FormData) {
 }
 
 export async function moveItem(fd: FormData) {
-  await requireAdmin();
+  const table0 = s(fd, 'table') as Table;
+  if (!(table0 in parentCol)) return;
+  await authorize(table0 as Kind, s(fd, 'id'), 'edit');
   const table = s(fd, 'table') as Table;
   if (!(table in parentCol)) return;
   await move(table, s(fd, 'id'), s(fd, 'dir') === 'up' ? 'up' : 'down');
@@ -284,7 +289,7 @@ export async function moveItem(fd: FormData) {
 }
 
 export async function addChapter(fd: FormData) {
-  await requireAdmin();
+  await authorize('course', s(fd, 'course_id'), 'edit');
   const courseId = s(fd, 'course_id');
   const [ch] = await sql<{ id: string }[]>`
     insert into chapter (course_id, position, title)
@@ -297,7 +302,7 @@ export async function addChapter(fd: FormData) {
 }
 
 export async function addSection(fd: FormData) {
-  await requireAdmin();
+  await authorize('chapter', s(fd, 'chapter_id'), 'edit');
   const chapterId = s(fd, 'chapter_id');
   const [se] = await sql<{ id: string; course_id: string }[]>`
     insert into section (chapter_id, position, title)
@@ -308,7 +313,9 @@ export async function addSection(fd: FormData) {
 }
 
 export async function renameItem(fd: FormData) {
-  await requireAdmin();
+  const tbl = s(fd, 'table');
+  if (tbl !== 'chapter' && tbl !== 'section') return;
+  await authorize(tbl, s(fd, 'id'), 'edit');
   const title = s(fd, 'title');
   if (!title) return;
   if (s(fd, 'table') === 'chapter') await sql`update chapter set title = ${title} where id = ${s(fd, 'id')}`;
@@ -317,7 +324,9 @@ export async function renameItem(fd: FormData) {
 }
 
 export async function deleteItem(fd: FormData) {
-  await requireAdmin();
+  const tbl = s(fd, 'table');
+  if (!['chapter', 'section', 'block'].includes(tbl)) return;
+  await authorize(tbl as Kind, s(fd, 'id'), 'edit');
   const id = s(fd, 'id');
   const table = s(fd, 'table');
   if (table === 'chapter') await sql`delete from chapter where id = ${id}`;
@@ -345,7 +354,7 @@ const defaults: Record<string, object> = {
 };
 
 export async function addBlock(fd: FormData) {
-  await requireAdmin();
+  await authorize('section', s(fd, 'section_id'), 'edit');
   const type = s(fd, 'type');
   const sectionId = s(fd, 'section_id');
   if (!(type in defaults)) return;
@@ -356,7 +365,7 @@ export async function addBlock(fd: FormData) {
 }
 
 export async function updateBlock(fd: FormData) {
-  await requireAdmin();
+  await authorize('block', s(fd, 'block_id') || s(fd, 'id'), 'edit');
   const id = s(fd, 'block_id') || s(fd, 'id');
   const [b] = await sql<{ type: string; content: Record<string, unknown> }[]>`select type, content from block where id = ${id}`;
   if (!b) return;
@@ -428,7 +437,7 @@ export async function updateBlock(fd: FormData) {
 // Lägger till en bild sist i ett bildspel. Anropas en bild i taget från editorn (även för PDF-sidor som
 // webbläsaren gjort om till bilder), så att varje anrop håller sig under storleksgränsen.
 export async function addSlide(fd: FormData): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requireAdmin();
+  await authorize('block', s(fd, 'block_id'), 'edit');
   const id = s(fd, 'block_id');
   try {
     const media = await saveImage(fd.get('image'));
@@ -448,6 +457,6 @@ export async function addSlide(fd: FormData): Promise<{ ok: true } | { ok: false
 }
 
 export async function refreshAdmin() {
-  await requireAdmin();
+  await authorizeRole('read');
   done();
 }

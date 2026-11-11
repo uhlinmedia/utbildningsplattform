@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { can, requireUser } from '@/lib/access';
 import { getCourseById, getCustomer, getStructure } from '@/lib/course';
 import { sql } from '@/lib/db';
 import type { Block, CertBadge } from '@/lib/types';
@@ -165,8 +166,12 @@ export default async function EditorPage({
 }: { params: Promise<{ id: string }>; searchParams: Promise<{ s?: string; flik?: string }> }) {
   const { id } = await params;
   const { s, flik } = await searchParams;
-  const course = await getCourseById(id);
-  if (!course) notFound();
+  const user = await requireUser();
+  const course = /^[0-9a-f-]{36}$/i.test(id) ? await getCourseById(id) : null;
+  if (!course || !can(user, course.customer_id, 'read')) notFound();
+  // Läsbehörighet: bara statistik.
+  if (!can(user, course.customer_id, 'edit')) redirect(`/admin/utbildningar/${id}/statistik`);
+  const canAdmin = can(user, course.customer_id, 'admin');
   const customer = await getCustomer(course.customer_id);
   const badges = await sql<CertBadge[]>`
     select id, media_id, label, position from cert_badge where customer_id = ${course.customer_id} order by position, created_at`;
@@ -210,6 +215,7 @@ export default async function EditorPage({
               <select name="access_mode" defaultValue={course.access_mode}>
                 <option value="name">Öppen länk + namn</option>
                 <option value="name_email">Länk + namn + e-post</option>
+                <option value="register">Bara personer i personregistret (inloggningslänk via e-post eller personlig länk)</option>
               </select>
             </label>
             <label className="field">Navigering
@@ -290,7 +296,7 @@ export default async function EditorPage({
               <iframe className="cert-preview" src={`/admin/certifikat?utbildning=${id}&v=${Date.now()}#view=Fit&toolbar=0&navpanes=0`} title="Förhandsvisning av certifikat" />
             </div>
           )}
-          <details style={{ marginTop: 28 }}>
+          {canAdmin ? <details style={{ marginTop: 28 }}>
             <summary className="btn-danger">Radera utbildningen</summary>
             <form action={deleteCourse} className="row" style={{ marginTop: 12 }} data-ingen-varning>
               <input type="hidden" name="id" value={id} />
@@ -299,7 +305,7 @@ export default async function EditorPage({
               </label>
               <button className="btn btn-danger" type="submit">Radera</button>
             </form>
-          </details>
+          </details> : <p className="small muted" style={{ marginTop: 28 }}>Bara kundadmin kan radera utbildningar, eftersom all elevdata och alla certifikat för utbildningen också tas bort.</p>}
         </section>
       ) : (
         <div className="editor">

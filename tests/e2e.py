@@ -1,5 +1,6 @@
 """End-to-end-test av hela flödet: admin bygger utbildning, elev genomför, certifikat, statistik, export."""
 import re, sys, os
+from konto import login
 from playwright.sync_api import sync_playwright, expect
 
 BASE = os.environ.get("BASE_URL", "http://localhost:3000")
@@ -30,8 +31,7 @@ with sync_playwright() as p:
     a.fill("input[name=email]", "admin@exempel.se"); a.fill("input[name=password]", "fel-losenord")
     a.click("button[type=submit]")
     expect(a.locator("p[role=alert]")).to_contain_text("Fel e-post")
-    a.fill("input[name=email]", os.environ.get("ADMIN_EMAIL", "admin@exempel.se")); a.fill("input[name=password]", os.environ.get("ADMIN_PASSWORD", "testlosenord123"))
-    a.click("button[type=submit]")
+    login(a, BASE)
     expect(a.get_by_role("heading", name="Kunder")).to_be_visible()
     step("inloggning")
 

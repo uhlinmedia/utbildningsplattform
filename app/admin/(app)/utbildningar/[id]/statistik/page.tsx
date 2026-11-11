@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import QRCode from 'qrcode';
 import { getCourseById, getCustomer } from '@/lib/course';
+import { can, requireUser } from '@/lib/access';
 import { getCourseStats, learnerStatus } from '@/lib/stats';
 import { setReviewLink } from '@/app/admin/actions';
 import { CopyLink } from './CopyLink';
@@ -12,8 +13,10 @@ const fmt = (d: Date | null) => (d ? new Date(d).toLocaleDateString('sv-SE') : '
 
 export default async function StatsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const course = await getCourseById(id);
-  if (!course) notFound();
+  const user = await requireUser();
+  const course = /^[0-9a-f-]{36}$/i.test(id) ? await getCourseById(id) : null;
+  if (!course || !can(user, course.customer_id, 'read')) notFound();
+  const canEdit = can(user, course.customer_id, 'edit');
   const customer = await getCustomer(course.customer_id);
   const { kpi, funnel, questions, learners, sectionCount } = await getCourseStats(id);
   const link = `${process.env.APP_URL ?? ''}/k/${course.slug}`;
@@ -25,7 +28,9 @@ export default async function StatsPage({ params }: { params: Promise<{ id: stri
     <>
       <div className="row between">
         <div className="stack" style={{ gap: 4 }}>
-          <Link href={`/admin/utbildningar/${id}`} className="small">← Tillbaka till editorn</Link>
+          {canEdit
+            ? <Link href={`/admin/utbildningar/${id}`} className="small">← Tillbaka till editorn</Link>
+            : <Link href={`/admin/kunder/${course.customer_id}`} className="small">← {customer?.name}</Link>}
           <span className="small muted">{customer?.name} · Statistik</span>
           <h1>{course.title}</h1>
         </div>
@@ -110,7 +115,9 @@ export default async function StatsPage({ params }: { params: Promise<{ id: stri
             Hemlig länk så att kunden kan gå igenom utbildningen innan den publiceras. Fungerar även för utkast,
             räknas inte i statistiken och ger bara testcertifikat.
           </p>
-          {reviewLink ? (
+          {!canEdit ? (
+            <p className="small muted" style={{ margin: 0 }}>{reviewLink ? 'Förhandsvisningslänk är aktiv.' : 'Ingen förhandsvisningslänk.'}</p>
+          ) : reviewLink ? (
             <>
               <CopyLink link={reviewLink} label="Länk till kunden" />
               <div className="row" style={{ gap: 8 }}>

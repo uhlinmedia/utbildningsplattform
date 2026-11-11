@@ -1,5 +1,5 @@
 export type NavMode = 'free' | 'linear' | 'sweep';
-export type AccessMode = 'name' | 'name_email';
+export type AccessMode = 'name' | 'name_email' | 'register';
 
 export type QuizOption = { id: string; text: string; correct: boolean };
 export type QuizContent = {

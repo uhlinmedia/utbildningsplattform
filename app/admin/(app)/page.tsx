@@ -1,10 +1,14 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { requireUser } from '@/lib/access';
 import { sql } from '@/lib/db';
 import { createCustomer } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CustomersPage() {
+  const user = await requireUser();
+  if (user.role !== 'superadmin') redirect(`/admin/kunder/${user.customer_id}`);
   const customers = await sql<{ id: string; name: string; color: string; courses: number; published: number }[]>`
     select c.id, c.name, c.color,
       count(co.id)::int as courses,

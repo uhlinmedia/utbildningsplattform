@@ -41,6 +41,7 @@ python3 tests/e2e.py
 python3 tests/certifikat.py   # certifikatdesign, körs efter e2e.py
 python3 tests/forhandsvisning.py   # varning vid osparade ändringar + förhandsvisning, körs efter e2e.py (behöver DATABASE_URL)
 python3 tests/kundgranskning.py    # förhandsvisningslänk för kund, körs efter e2e.py (behöver DATABASE_URL och pypdf)
+python3 tests/kundkonton.py        # konton, roller, avskild data, personregister, elevinloggning (kräver MAIL_DIR=tests/out/mail på servern)
 python3 tests/bildspel.py          # YouTube, bildspel från PDF/bilder, bredare innehållsyta, körs efter e2e.py (behöver DATABASE_URL)
 ```
 
@@ -86,3 +87,11 @@ db/migrations/    SQL-schema
 scripts/          migrering och skapa admin
 tests/            end-to-end-test
 ```
+
+## Kundkonton och personregister (steg A)
+- **Användare:** superadmin (Briondo) eller kundanvändare med roll *Kundadmin*, *Utbildningsansvarig* eller *Läsbehörighet*. Inbjudan via e-post, lösenord minst 12 tecken, **tvåstegsverifiering krävs för alla** (TOTP-app + 10 reservkoder). Fem felaktiga försök spärrar kontot i 15 minuter.
+- **Behörighet** kontrolleras på servern i varje sida och åtgärd (`lib/access.ts`). En kundanvändare ser bara sin egen kund – andra kunders sidor ger 404.
+- **Ändringslogg** per kund (`audit_log`).
+- **Personregister** per kund: namn, e-post, anställningsnummer, grupp. Import från Excel/CSV (känner igen personer på anställningsnummer eller e-post), export till Excel.
+- **Åtkomstläge "Bara personer i personregistret":** eleven skriver sin e-post och får en inloggningslänk (30 min, engångs, löses in med en knapp så att e-postskannrar inte förbrukar den), eller använder sin personliga länk `/p/<nyckel>`. `/mina` visar personens utbildningar och certifikat.
+- **E-post** via SMTP (se `.env.example`). Utan SMTP visas inbjudningslänkar i admin för att skickas manuellt.

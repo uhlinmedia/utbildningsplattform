@@ -1,6 +1,7 @@
 """Test av förhandsvisningslänk för kund: skapa, kunden går igenom ett utkast, testcertifikat,
 räknas inte i statistiken, byt länk och stäng av. Kör efter e2e.py (behöver DATABASE_URL)."""
 import re, os, io, subprocess
+from konto import login
 from playwright.sync_api import sync_playwright, expect
 from pypdf import PdfReader
 
@@ -16,10 +17,7 @@ with sync_playwright() as p:
     a = admin.new_page()
     errors = []
     a.on("pageerror", lambda e: errors.append(str(e)))
-    a.goto(BASE + "/admin/login")
-    a.fill("input[name=email]", os.environ.get("ADMIN_EMAIL", "admin@exempel.se"))
-    a.fill("input[name=password]", os.environ.get("ADMIN_PASSWORD", "testlosenord123"))
-    a.click("button[type=submit]")
+    login(a, BASE)
     expect(a.get_by_role("heading", name="Kunder")).to_be_visible()
     a.locator("a[href^='/admin/kunder/']").first.click()
     a.wait_for_url(re.compile(r"/admin/kunder/"))

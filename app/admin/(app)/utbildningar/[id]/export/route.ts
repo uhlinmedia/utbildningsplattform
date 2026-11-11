@@ -1,13 +1,12 @@
 import ExcelJS from 'exceljs';
-import { isAdmin } from '@/lib/auth';
+import { canReadCustomer } from '@/lib/auth';
 import { getCourseById, getCustomer } from '@/lib/course';
 import { getCourseStats, learnerStatus } from '@/lib/stats';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAdmin())) return new Response('Ingen behörighet', { status: 403 });
   const { id } = await params;
-  const course = await getCourseById(id);
-  if (!course) return new Response('Hittades inte', { status: 404 });
+  const course = /^[0-9a-f-]{36}$/i.test(id) ? await getCourseById(id) : null;
+  if (!course || !(await canReadCustomer(course.customer_id))) return new Response('Hittades inte', { status: 404 });
   const customer = await getCustomer(course.customer_id);
   const { kpi, funnel, questions, learners, sectionCount } = await getCourseStats(id);
 

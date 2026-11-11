@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { can, requireCustomerPage } from '@/lib/access';
+import { CustomerHeader } from './CustomerHeader';
 import { sql } from '@/lib/db';
 import { getCustomer } from '@/lib/course';
 import { addCertBadge, createCourse, duplicateCourse, updateCertBadge, updateCustomer, updateCustomerCert } from '../../../actions';
@@ -7,7 +9,7 @@ import type { CertBadge } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-const accessLabel = { name: 'Länk + namn', name_email: 'Länk + namn + e-post' } as const;
+const accessLabel = { name: 'Länk + namn', name_email: 'Länk + namn + e-post', register: 'Personregistret' } as const;
 
 const templates = [
   { value: 'klassisk', label: 'Klassisk', hint: 'Ram med guillochémönster, serifftypsnitt och centrerad text – traditionellt diplom' },
@@ -17,10 +19,14 @@ const templates = [
 
 export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const user = await requireCustomerPage(id, 'read');
   const customer = await getCustomer(id);
   if (!customer) notFound();
+  const canEdit = can(user, id, 'edit');
+  const canAdmin = can(user, id, 'admin');
+  const isSuper = user.role === 'superadmin';
   const courses = await sql<
-    { id: string; title: string; status: string; access_mode: 'name' | 'name_email'; certificate_enabled: boolean; completed: number; started: number }[]
+    { id: string; title: string; status: string; access_mode: 'name' | 'name_email' | 'register'; certificate_enabled: boolean; completed: number; started: number }[]
   >`select c.id, c.title, c.status, c.access_mode, c.certificate_enabled,
       count(e.id)::int as started, count(e.completed_at)::int as completed
     from course c left join enrollment e on e.course_id = c.id
@@ -28,23 +34,22 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const badges = await sql<CertBadge[]>`
     select id, media_id, label, position from cert_badge where customer_id = ${id} order by position, created_at`;
   const allCourses = await sql<{ id: string; title: string; customer: string }[]>`
-    select co.id, co.title, cu.name as customer from course co join customer cu on cu.id = co.customer_id order by cu.name, co.title`;
+    select co.id, co.title, cu.name as customer from course co join customer cu on cu.id = co.customer_id
+    where ${isSuper} or co.customer_id = ${id}
+    order by cu.name, co.title`;
 
   return (
     <>
-      <div className="stack" style={{ gap: 4 }}>
-        <Link href="/admin" className="small">← Kunder</Link>
-        <h1>{customer.name}</h1>
-      </div>
+      <CustomerHeader user={user} customer={customer} active="utbildningar" />
 
       <section className="card stack">
         <div className="row between">
           <h2>Utbildningar</h2>
-          <form action={createCourse} className="row" data-namn="Ny utbildning">
+          {canEdit && <form action={createCourse} className="row" data-namn="Ny utbildning">
             <input type="hidden" name="customer_id" value={id} />
             <input type="text" name="title" placeholder="Namn på utbildningen" aria-label="Namn på ny utbildning" required style={{ width: 260 }} />
             <button className="btn btn-dark" type="submit">+ Ny utbildning</button>
-          </form>
+          </form>}
         </div>
         {courses.length === 0 ? (
           <p className="muted">Inga utbildningar än.</p>
@@ -64,7 +69,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
                     <td>{c.started} / {c.completed}</td>
                     <td>
                       <div className="row" style={{ gap: 14 }}>
-                        <Link href={`/admin/utbildningar/${c.id}`}>Redigera</Link>
+                        {canEdit && <Link href={`/admin/utbildningar/${c.id}`}>Redigera</Link>}
                         <Link href={`/admin/utbildningar/${c.id}/statistik`}>Statistik &amp; dela</Link>
                       </div>
                     </td>
@@ -74,7 +79,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             </table>
           </div>
         )}
-        {allCourses.length > 0 && (
+        {canEdit && allCourses.length > 0 && (
           <details>
             <summary>Skapa från befintlig utbildning</summary>
             <form action={duplicateCourse} className="row" style={{ marginTop: 12 }} data-ingen-varning>
@@ -91,6 +96,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
       </section>
 
 
+      {canAdmin && <>
       <section className="card stack" id="certifikat">
         <div className="stack" style={{ gap: 4 }}>
           <h2>Certifikatets utseende</h2>
@@ -206,15 +212,20 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
           <label className="field">Kontaktpersonens e-post<input type="email" name="contact_email" defaultValue={customer.contact_email ?? ''} /></label>
           <label className="field">Gallringstid för elevdata
             <span className="hint">Namn, e-post och svar raderas automatiskt efter denna tid. Certifikat-ID och datum behålls för verifiering.</span>
-            <select name="retention_months" defaultValue={customer.retention_months}>
-              <option value={12}>12 månader</option>
-              <option value={24}>24 månader</option>
-              <option value={36}>36 månader</option>
-            </select>
+            {isSuper ? (
+              <select name="retention_months" defaultValue={customer.retention_months}>
+                <option value={12}>12 månader</option>
+                <option value={24}>24 månader</option>
+                <option value={36}>36 månader</option>
+              </select>
+            ) : (
+              <span><strong>{customer.retention_months} månader</strong> <span className="hint">– enligt avtalet med Briondo. Kontakta Briondo för att ändra.</span></span>
+            )}
           </label>
           <div><button className="btn btn-primary" type="submit">Spara kundprofil</button></div>
         </form>
       </section>
+      </>}
     </>
   );
 }

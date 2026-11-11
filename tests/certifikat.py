@@ -1,6 +1,7 @@
 """Test av certifikatdesign: mall, dekorfärg, SVG-logga, märken, underskrifter och förhandsvisning.
 Kör efter e2e.py (använder kunden och utbildningen därifrån). Grafiken skapas i testet."""
 import re, os
+from konto import login
 from playwright.sync_api import sync_playwright, expect
 
 BASE = os.environ.get("BASE_URL", "http://localhost:3000")
@@ -29,10 +30,7 @@ with sync_playwright() as p:
     a = ctx.new_page()
     errors = []
     a.on("pageerror", lambda e: errors.append(str(e)))
-    a.goto(BASE + "/admin/login")
-    a.fill("input[name=email]", os.environ.get("ADMIN_EMAIL", "admin@exempel.se"))
-    a.fill("input[name=password]", os.environ.get("ADMIN_PASSWORD", "testlosenord123"))
-    a.click("button[type=submit]")
+    login(a, BASE)
     expect(a.get_by_role("heading", name="Kunder")).to_be_visible()
     a.get_by_role("link", name=re.compile("Testkommunen")).first.click()
     expect(a).to_have_url(re.compile("/admin/kunder/"))

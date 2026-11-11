@@ -57,7 +57,7 @@ img { max-width: 100%; height: auto; }
 
 label.field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; }
 .field .hint { font-weight: 400; font-size: 13px; color: var(--muted); }
-input[type=text], input[type=email], input[type=password], input[type=number], input[type=date], input[type=url], select, textarea {
+input[type=text], input[type=email], input[type=password], input[type=number], input[type=date], input[type=url], input[type=search], select, textarea {
   min-height: 44px; padding: 8px 12px; border: 1.5px solid var(--line-strong); border-radius: var(--radius);
   font: inherit; font-size: 15px; background: #fff; color: var(--ink); width: 100%;
 }
@@ -277,3 +277,28 @@ details:has(form[data-osparad]) > summary::after { content: ' ● ej sparat'; co
 .slide-list img { width: 120px; height: 68px; object-fit: contain; background: #f1f3f5; border-radius: 6px; }
 @media (max-width: 640px) { .slide-list li { grid-template-columns: 24px 80px 1fr; } .slide-list li > .row { grid-column: 1 / -1; } .slide-list img { width: 80px; height: 45px; } }
 .slide-upload { padding: 12px; border: 1px dashed var(--line-strong); border-radius: 10px; background: #fafbfc; }
+
+/* ---------- Konton ---------- */
+.nav-customer { padding: 4px 12px 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #8b98a6; }
+.nav-user { margin-top: auto; padding-top: 14px; border-top: 1px solid #2c3744; display: flex; flex-direction: column; gap: 2px; }
+.admin-nav a.nav-user-name { display: flex; flex-direction: column; gap: 2px; color: #fff; }
+.admin-nav a.nav-user-name .small { color: #8b98a6; }
+@media (max-width: 720px) { .nav-user { margin-top: 0; border-top: 0; padding-top: 0; flex-direction: row; align-items: center; } .nav-customer { width: 100%; padding-bottom: 2px; } }
+.auth-card { width: 100%; max-width: 420px; }
+.code-input { font-size: 26px; letter-spacing: .3em; text-align: center; font-variant-numeric: tabular-nums; }
+.qr-box { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.qr-box img { width: 180px; height: 180px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.secret { font-family: ui-monospace, Menlo, monospace; font-size: 14px; word-break: break-all; background: #f1f3f5; padding: 8px 10px; border-radius: 8px; user-select: all; }
+.recovery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; font-family: ui-monospace, Menlo, monospace; font-size: 16px; padding: 14px; background: #f8f9fa; border: 1px dashed var(--line-strong); border-radius: 10px; margin: 0; list-style: none; }
+.ok { color: var(--ok); }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.tabs a { padding: 10px 14px; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 500; }
+.tabs a[aria-current=page] { color: var(--ink); border-bottom-color: var(--brand); }
+.role-badge { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: #eef2f5; color: var(--ink); white-space: nowrap; }
+
+/* ---------- Mina utbildningar (elev) ---------- */
+.mina { min-height: 100vh; background: var(--bg, #f4f6f8); }
+.mina-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: #fff; border-bottom: 3px solid var(--brand); }
+.mina-head img { max-height: 40px; max-width: 200px; }
+.mina-body { max-width: 760px; margin: 0 auto; padding: 24px 16px 40px; }
+.mina-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }

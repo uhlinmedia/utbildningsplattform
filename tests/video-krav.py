@@ -2,6 +2,7 @@
 försvann den). Vimeo-spelaren ersätts av en låtsasspelare som skickar samma meddelanden som Vimeo.
 Kör efter e2e.py. Kräver DATABASE_URL."""
 import re, os, subprocess
+from konto import login
 from playwright.sync_api import sync_playwright, expect
 
 BASE = os.environ.get("BASE_URL", "http://localhost:3000")
@@ -27,10 +28,7 @@ with sync_playwright() as p:
     ctx = b.new_context(viewport={"width": 1280, "height": 900})
     ctx.route(re.compile(r"https://player\.vimeo\.com/.*"), lambda r: r.fulfill(status=200, content_type="text/html", body=FAKE))
     a = ctx.new_page()
-    a.goto(BASE + "/admin/login")
-    a.fill("input[name=email]", os.environ.get("ADMIN_EMAIL", "admin@exempel.se"))
-    a.fill("input[name=password]", os.environ.get("ADMIN_PASSWORD", "testlosenord123"))
-    a.click("button[type=submit]")
+    login(a, BASE)
     expect(a.get_by_role("heading", name="Kunder")).to_be_visible()
     a.locator("a[href^='/admin/kunder/']").first.click()
     a.wait_for_url(re.compile(r"/admin/kunder/"))

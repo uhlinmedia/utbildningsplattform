@@ -1,17 +1,8 @@
 import 'server-only';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { ADMIN_COOKIE, verifyAdminSession } from './session';
+import { can, sessionUser } from './access';
 
-// Kontroll i varje server action – middleware räcker inte som enda skydd.
-export async function requireAdmin() {
-  const store = await cookies();
-  const id = await verifyAdminSession(store.get(ADMIN_COOKIE)?.value);
-  if (!id) redirect('/admin/login');
-  return id;
-}
-
-export async function isAdmin() {
-  const store = await cookies();
-  return !!(await verifyAdminSession(store.get(ADMIN_COOKIE)?.value));
+// Får den inloggade användaren läsa (t.ex. förhandsvisa) innehåll hos kunden?
+export async function canReadCustomer(customerId: string | null | undefined) {
+  const u = await sessionUser();
+  return !!u && can(u, customerId, 'read');
 }

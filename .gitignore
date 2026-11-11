@@ -6,3 +6,4 @@ tests/out/
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+__pycache__/
