@@ -234,6 +234,18 @@ details:has(form[data-osparad]) > summary::after { content: ' ● ej sparat'; co
 .slides-stage:focus-visible { box-shadow: 0 0 0 3px var(--brand); }
 .slides-stage img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
 .slides-stage.is-full { aspect-ratio: auto; max-height: none; border-radius: 0; border: 0; background: #111; }
+/* iPhone: ingen riktig helskärm för annat än video – bildspelet täcker hela fönstret i stället. */
+.slides-stage.is-pseudo {
+  position: fixed; inset: 0; z-index: 1000; width: 100vw; height: 100vh; height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.slides-close {
+  position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px));
+  width: 44px; height: 44px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer;
+  background: rgba(20, 32, 43, .6); color: #fff; z-index: 2;
+}
+.slides-close svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+.slides-close:hover, .slides-close:focus-visible { background: var(--brand); }
 .slides-arrow {
   position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; border-radius: 50%;
   display: grid; place-items: center; border: 0; cursor: pointer; background: rgba(20, 32, 43, .55); color: #fff;

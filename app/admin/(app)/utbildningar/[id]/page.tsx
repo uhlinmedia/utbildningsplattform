@@ -5,7 +5,7 @@ import { sql } from '@/lib/db';
 import type { Block, CertBadge } from '@/lib/types';
 import { SlideUploader } from './SlideUploader';
 import {
-  addBlock, addChapter, addSection, deleteCourse, deleteItem, moveItem, renameItem, setCourseStatus, updateBlock,
+  addBlock, addChapter, addSection, deleteCourse, deleteItem, moveItem, moveSectionToChapter, renameItem, setCourseStatus, updateBlock,
   updateCourseSettings,
 } from '../../../actions';
 
@@ -345,7 +345,21 @@ export default async function EditorPage({
                     <input type="text" name="title" defaultValue={current.title} aria-label="Avsnittets rubrik" style={{ fontSize: 20, fontWeight: 600 }} />
                     <button className="btn btn-sm" type="submit">Spara rubrik</button>
                   </form>
-                  <MoveDelete table="section" id={current.id} label="avsnittet" />
+                  <div className="row between" style={{ gap: 8 }}>
+                    <MoveDelete table="section" id={current.id} label="avsnittet" />
+                    {chapters.length > 1 && (
+                      <form action={moveSectionToChapter} className="row" style={{ gap: 6, flexWrap: 'nowrap' }} data-namn="Flytta avsnitt till kapitel">
+                        <input type="hidden" name="section_id" value={current.id} />
+                        <label className="small" htmlFor="flytta-kapitel" style={{ whiteSpace: 'nowrap' }}>Flytta till kapitel</label>
+                        <select id="flytta-kapitel" name="chapter_id" defaultValue={current.chapter.id} style={{ maxWidth: 240, minHeight: 36, padding: '4px 8px' }}>
+                          {chapters.map((c, i) => (
+                            <option key={c.id} value={c.id}>{i + 1}. {c.title}{c.id === current.chapter.id ? ' (nu)' : ''}</option>
+                          ))}
+                        </select>
+                        <button className="btn btn-sm" type="submit">Flytta</button>
+                      </form>
+                    )}
+                  </div>
                 </div>
                 {current.blocks.map((b) => <BlockEditor key={b.id} block={b} />)}
                 <div className="card stack" style={{ borderStyle: 'dashed', gap: 10 }}>

@@ -45,7 +45,9 @@ with sync_playwright() as p:
     a.wait_for_url(re.compile(r"/admin/utbildningar/[0-9a-f-]+"))
 
     # --- Video: två fält under samma knapp ---
+    n_vid = a.locator(".block-card:has(input[name=youtube])").count()
     a.get_by_role("button", name="Video", exact=True).click()
+    expect(a.locator(".block-card:has(input[name=youtube])")).to_have_count(n_vid + 1)
     vid = a.locator(".block-card:has(input[name=youtube])").last
     expect(vid.locator("input[name=vimeo]")).to_be_visible()
     vid.locator("input[name=youtube]").fill("https://youtu.be/aqz-KE-bpKQ?si=abc")
@@ -59,7 +61,9 @@ with sync_playwright() as p:
     step("video: Vimeo- och YouTube-fält i samma block, YouTube-länk tolkas")
 
     # --- Bildspel ---
+    n_sl = a.locator(".block-card:has(.slide-upload)").count()
     a.get_by_role("button", name="Bildspel (PDF/PPT)", exact=True).click()
+    expect(a.locator(".block-card:has(.slide-upload)")).to_have_count(n_sl + 1)
     sl = a.locator(".block-card:has(.slide-upload)").last
     expect(sl).to_contain_text("Inga bilder än")
     with a.expect_file_chooser() as fc:
@@ -162,6 +166,23 @@ with sync_playwright() as p:
     assert overflow <= 0, f"sidan scrollar i sidled ({overflow}px)"
     mp.screenshot(path=OUT + "/bildspel-mobil.png")
     step("mobil: ingen sidledsscroll")
+
+    # iPhone: ingen helskärm för annat än video → bildspelet täcker hela fönstret i stället
+    mp.add_init_script("""for (const k of ['requestFullscreen', 'webkitRequestFullscreen']) Object.defineProperty(Element.prototype, k, {value: undefined});
+      for (const k of ['fullscreenEnabled', 'webkitFullscreenEnabled']) Object.defineProperty(Document.prototype, k, {get: () => false});""")
+    mp.reload()
+    show = mp.locator("figure.slides")
+    show.get_by_role("button", name="Helskärm").click()
+    stage = mp.locator(".slides-stage.is-pseudo")
+    expect(stage).to_be_visible()
+    box = stage.bounding_box()
+    assert box["width"] == 390 and box["height"] >= 800, box
+    stage.get_by_role("button", name="Nästa bild").click()
+    expect(stage.locator(".slides-badge")).to_have_text("2 / 4")
+    mp.screenshot(path=OUT + "/bildspel-iphone-helskarm.png")
+    stage.get_by_role("button", name="Stäng helskärm").click()
+    expect(mp.locator(".slides-stage.is-pseudo")).to_have_count(0)
+    step("iPhone: helskärm täcker fönstret, kan stängas")
 
     assert not errors and not pv_errors, errors + pv_errors
     print("ALLA TESTER GICK IGENOM")

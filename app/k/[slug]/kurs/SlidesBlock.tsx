@@ -46,15 +46,50 @@ export function SlidesBlock(props: {
     if (i + 1 < n) { const img = new Image(); img.src = slides[i + 1].src; }
   }, [i, n, slides]);
 
+  // Helskärm: webbläsarens helskärm där den finns (även med webkit-prefix, t.ex. iPad).
+  // iPhone tillåter bara helskärm för video – där fyller bildspelet i stället hela fönstret (pseudo).
+  const [pseudo, setPseudo] = useState(false);
   useEffect(() => {
-    const onFs = () => setFull(document.fullscreenElement === box.current);
+    const doc = document as Document & { webkitFullscreenElement?: Element | null };
+    const onFs = () => setFull((document.fullscreenElement ?? doc.webkitFullscreenElement) === box.current);
     document.addEventListener('fullscreenchange', onFs);
-    return () => document.removeEventListener('fullscreenchange', onFs);
+    document.addEventListener('webkitfullscreenchange', onFs);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs);
+      document.removeEventListener('webkitfullscreenchange', onFs);
+    };
   }, []);
 
+  useEffect(() => {
+    if (!pseudo) return;
+    const html = document.documentElement;
+    const prev = html.style.overflow;
+    html.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPseudo(false); };
+    window.addEventListener('keydown', onKey);
+    box.current?.focus();
+    return () => { html.style.overflow = prev; window.removeEventListener('keydown', onKey); };
+  }, [pseudo]);
+
+  const isFull = full || pseudo;
+
   const toggleFull = () => {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else box.current?.requestFullscreen?.().catch(() => {});
+    const doc = document as Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void };
+    if (pseudo) { setPseudo(false); return; }
+    if (document.fullscreenElement || doc.webkitFullscreenElement) {
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      else doc.webkitExitFullscreen?.();
+      return;
+    }
+    const el = box.current as (HTMLDivElement & { webkitRequestFullscreen?: () => void }) | null;
+    if (!el) return;
+    if (el.requestFullscreen && document.fullscreenEnabled) {
+      el.requestFullscreen().catch(() => setPseudo(true));
+    } else if (el.webkitRequestFullscreen && (doc as { webkitFullscreenEnabled?: boolean }).webkitFullscreenEnabled) {
+      el.webkitRequestFullscreen();
+    } else {
+      setPseudo(true);
+    }
   };
 
   if (n === 0) return null;
@@ -64,7 +99,10 @@ export function SlidesBlock(props: {
     <figure className="slides" style={{ margin: 0 }} aria-roledescription="bildspel" aria-label={props.title || 'Bildspel'}>
       <div
         ref={box}
-        className={`slides-stage${full ? ' is-full' : ''}`}
+        className={`slides-stage${isFull ? ' is-full' : ''}${pseudo ? ' is-pseudo' : ''}`}
+        role={pseudo ? 'dialog' : undefined}
+        aria-modal={pseudo ? true : undefined}
+        aria-label={pseudo ? 'Bildspel i helskärm' : undefined}
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); go(i + 1); }
@@ -82,7 +120,12 @@ export function SlidesBlock(props: {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img key={s.src} src={s.src} alt={s.alt || `Bild ${i + 1} av ${n}`} draggable={false} />
-        {full && <span className="slides-badge" aria-hidden="true">{i + 1} / {n}</span>}
+        {isFull && <span className="slides-badge" aria-hidden="true">{i + 1} / {n}</span>}
+        {isFull && (
+          <button type="button" className="slides-close" onClick={toggleFull} aria-label="Stäng helskärm">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        )}
         <button type="button" className="slides-arrow prev" onClick={() => go(i - 1)} disabled={i === 0} aria-label="Föregående bild">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
         </button>
@@ -106,8 +149,8 @@ export function SlidesBlock(props: {
             ))}
           </div>
         )}
-        <button type="button" className="btn btn-sm slides-full" onClick={toggleFull} aria-pressed={full}>
-          {full ? 'Stäng helskärm' : 'Helskärm'}
+        <button type="button" className="btn btn-sm slides-full" onClick={toggleFull} aria-pressed={isFull}>
+          {isFull ? 'Stäng helskärm' : 'Helskärm'}
         </button>
       </div>
       {props.caption && <figcaption className="small muted">{props.caption}</figcaption>}

@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import type { TransactionSql } from 'postgres';
 import { sql } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { ADMIN_COOKIE } from '@/lib/session';
@@ -234,10 +235,44 @@ async function move(table: Table, id: string, dir: 'up' | 'down') {
     const [other] = dir === 'up'
       ? await tx`select id, position from ${tx(table)} where ${tx(parent)} = ${row.parent} and position < ${row.position} order by position desc limit 1`
       : await tx`select id, position from ${tx(table)} where ${tx(parent)} = ${row.parent} and position > ${row.position} order by position asc limit 1`;
-    if (!other) return;
+    if (!other) {
+      // Avsnitt överst/nederst i ett kapitel flyttas vidare till föregående/nästa kapitel.
+      if (table === 'section') await moveSectionAcross(tx, id, row.parent, dir);
+      return;
+    }
     await tx`update ${tx(table)} set position = ${other.position} where id = ${id}`;
     await tx`update ${tx(table)} set position = ${row.position} where id = ${other.id}`;
   });
+}
+
+async function moveSectionAcross(tx: TransactionSql, id: string, chapterId: string, dir: 'up' | 'down') {
+  const [ch] = await tx`select course_id, position from chapter where id = ${chapterId}`;
+  if (!ch) return;
+  const [target] = dir === 'up'
+    ? await tx`select id from chapter where course_id = ${ch.course_id} and position < ${ch.position} order by position desc limit 1`
+    : await tx`select id from chapter where course_id = ${ch.course_id} and position > ${ch.position} order by position asc limit 1`;
+  if (!target) return;
+  // Uppåt: sist i föregående kapitel. Nedåt: först i nästa kapitel.
+  if (dir === 'up') {
+    await tx`update section set chapter_id = ${target.id},
+      position = (select coalesce(max(position), 0) + 1 from section where chapter_id = ${target.id}) where id = ${id}`;
+  } else {
+    await tx`update section set chapter_id = ${target.id},
+      position = (select coalesce(min(position), 1) - 1 from section where chapter_id = ${target.id}) where id = ${id}`;
+  }
+}
+
+// Flyttar ett avsnitt (med alla block och elevernas framsteg) sist i ett annat kapitel i samma utbildning.
+export async function moveSectionToChapter(fd: FormData) {
+  await requireAdmin();
+  const id = s(fd, 'section_id');
+  const chapterId = s(fd, 'chapter_id');
+  await sql`update section set chapter_id = ${chapterId},
+      position = (select coalesce(max(position), 0) + 1 from section where chapter_id = ${chapterId})
+    where id = ${id} and chapter_id <> ${chapterId}
+      and (select course_id from chapter where id = ${chapterId}) =
+          (select c.course_id from chapter c join section s2 on s2.chapter_id = c.id where s2.id = ${id})`;
+  done();
 }
 
 export async function moveItem(fd: FormData) {
