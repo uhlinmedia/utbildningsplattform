@@ -73,7 +73,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .scroll-x { overflow-x: auto; }
 
 /* Admin */
-.admin { display: flex; flex-wrap: wrap; min-height: 100vh; }
+.admin { display: flex; flex-wrap: wrap; min-height: 100vh; overflow-x: clip; }
 .admin-nav { flex: 1 1 220px; max-width: 240px; background: var(--ink); color: #e6e9ed; padding: 20px 14px; display: flex; flex-direction: column; gap: 4px; }
 .wordmark { font-family: 'Outfit Variable', Outfit, Inter, system-ui, sans-serif; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
 .admin-nav .brand { padding: 6px 10px 22px; text-decoration: none; }
@@ -81,7 +81,6 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .admin-nav a { padding: 11px 12px; border-radius: 8px; color: #c9d0d8; text-decoration: none; font-size: 14px; }
 .admin-nav a:hover { background: #2c3744; color: #fff; }
 .admin-main { flex: 999 1 560px; min-width: 0; padding: 28px clamp(16px, 3vw, 40px); display: flex; flex-direction: column; gap: 22px; }
-@media (max-width: 720px) { .admin-nav { max-width: none; flex-direction: row; flex-wrap: wrap; } .admin-nav .brand { width: 100%; padding-bottom: 6px; } }
 .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
 .cust-card { display: flex; flex-direction: column; gap: 6px; padding: 18px; border-radius: 12px; background: #fff; border: 1px solid var(--line); text-decoration: none; color: var(--ink); }
 .cust-card:hover { border-color: var(--brand); }
@@ -283,7 +282,21 @@ details:has(form[data-osparad]) > summary::after { content: ' ● ej sparat'; co
 .nav-user { margin-top: auto; padding-top: 14px; border-top: 1px solid #2c3744; display: flex; flex-direction: column; gap: 2px; }
 .admin-nav a.nav-user-name { display: flex; flex-direction: column; gap: 2px; color: #fff; }
 .admin-nav a.nav-user-name .small { color: #8b98a6; }
-@media (max-width: 720px) { .nav-user { margin-top: 0; border-top: 0; padding-top: 0; flex-direction: row; align-items: center; } .nav-customer { width: 100%; padding-bottom: 2px; } }
+.nav-top { display: flex; flex-direction: column; }
+.nav-links { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.nav-toggle { display: none; }
+input[type=file] { max-width: 100%; }
+/* Mobil: kompakt list högst upp, länkarna bakom en Meny-knapp. */
+@media (max-width: 720px) {
+  .admin-nav { max-width: none; flex-basis: 100%; padding: 10px 16px; gap: 0; position: sticky; top: 0; z-index: 20; }
+  .nav-top { flex-direction: row; align-items: center; gap: 12px; min-height: 44px; }
+  .admin-nav .brand { padding: 4px 0; flex: none; }
+  .nav-customer { flex: 1; min-width: 0; padding: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .nav-toggle { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; flex: none; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #3a4655; background: transparent; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
+  .nav-links { display: none; padding: 8px 0 4px; }
+  .admin-nav[data-open] .nav-links { display: flex; }
+  .nav-user { flex-direction: row; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 8px; }
+}
 .auth-card { width: 100%; max-width: 420px; }
 .code-input { font-size: 26px; letter-spacing: .3em; text-align: center; font-variant-numeric: tabular-nums; }
 .qr-box { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
@@ -294,6 +307,12 @@ details:has(form[data-osparad]) > summary::after { content: ' ● ej sparat'; co
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .tabs a { padding: 10px 14px; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 500; }
 .tabs a[aria-current=page] { color: var(--ink); border-bottom-color: var(--brand); }
+@media (max-width: 720px) {
+  .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs a { white-space: nowrap; padding: 10px 12px; }
+  .card { padding: 16px; }
+}
 .role-badge { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: #eef2f5; color: var(--ink); white-space: nowrap; }
 
 /* ---------- Mina utbildningar (elev) ---------- */

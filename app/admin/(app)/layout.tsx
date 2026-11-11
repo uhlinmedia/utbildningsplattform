@@ -4,6 +4,7 @@ import { sql } from '@/lib/db';
 import { logout } from '../auth-actions';
 import { Wordmark } from '../../Wordmark';
 import { UnsavedGuard } from '../UnsavedGuard';
+import { AdminNav } from '../AdminNav';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -13,11 +14,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const c = user.customer_id ? `/admin/kunder/${user.customer_id}` : null;
   return (
     <div className="admin">
-      <nav className="admin-nav" aria-label="Admin">
-        <Link href={c ?? '/admin'} className="brand"><Wordmark size={26} dark /></Link>
+      <AdminNav
+        top={
+          <>
+            <Link href={c ?? '/admin'} className="brand"><Wordmark size={26} dark /></Link>
+            {c && <span className="nav-customer">{customer?.name}</span>}
+          </>
+        }
+      >
         {c ? (
           <>
-            <span className="nav-customer">{customer?.name}</span>
             <Link href={c}>Utbildningar</Link>
             <Link href={`${c}/personer`}>Personregister</Link>
             {user.role === 'kundadmin' && <Link href={`${c}/anvandare`}>Användare</Link>}
@@ -38,7 +44,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <button className="btn-link" style={{ color: '#c9d0d8', padding: '8px 12px' }} type="submit">Logga ut</button>
           </form>
         </div>
-      </nav>
+      </AdminNav>
       <main className="admin-main">{children}</main>
       <UnsavedGuard />
     </div>
