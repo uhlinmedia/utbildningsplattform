@@ -43,13 +43,17 @@ export function VideoBlock(props: {
   const ref = useRef<HTMLIFrameElement>(null);
   const router = useRouter();
   const [percent, setPercent] = useState(props.initialPercent);
-  const { slug, blockId, provider, initialPercent, required } = props;
+  const { slug, blockId, provider } = props;
+  // Värden som ändras när sidan laddas om (router.refresh) läses via ref, så att spelaren inte
+  // byggs om mitt i uppspelningen. Vimeos destroy() tar bort videon ur sidan – då stannade den.
+  const live = useRef({ initialPercent: props.initialPercent, required: props.required, router });
+  live.current = { initialPercent: props.initialPercent, required: props.required, router };
 
   useEffect(() => {
     if (!ref.current) return;
     let watched = 0; // sekunder som spelats
     let lastTime = 0;
-    let reported = initialPercent;
+    let reported = live.current.initialPercent;
     let cancelled = false;
 
     // Räkna bara små steg framåt, så att spola framåt inte ger kredit.
@@ -58,11 +62,15 @@ export function VideoBlock(props: {
       if (seconds > lastTime && seconds - lastTime < 2) watched += seconds - lastTime;
       lastTime = seconds;
       const p = Math.min(100, Math.round((watched / duration) * 100));
-      if (p >= reported + 5 || (p >= 100 && reported < 100)) {
+      if (p >= reported + 5 || (p >= 100 && reported < 100) || (live.current.required > 0 && p >= live.current.required && reported < live.current.required)) {
+        const before = reported;
         reported = p;
         setPercent((cur) => Math.max(cur, p));
+        const { required, router } = live.current;
+        const crossed = required > 0 && p >= required && before < required;
         reportVideo(slug, blockId, p).then(() => {
-          if (required && p >= required) router.refresh();
+          // Ladda om sidan en gång när kravet uppnås, så att Nästa låses upp. Videon fortsätter spela.
+          if (crossed) router.refresh();
         });
       }
     };
@@ -99,7 +107,7 @@ export function VideoBlock(props: {
       cleanup = () => { clearInterval(timer); };
     }
     return () => { cancelled = true; cleanup(); };
-  }, [slug, blockId, provider, initialPercent, required, router]);
+  }, [slug, blockId, provider]);
 
   return (
     <div className="stack" style={{ gap: 8 }}>
