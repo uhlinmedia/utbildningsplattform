@@ -20,7 +20,8 @@ export type VideoContent = {
   title?: string;
 };
 // Bildspel: flera bilder i samma yta med pilar, t.ex. sidor från en PDF eller bilder exporterade från PowerPoint.
-export type Slide = { media_id: string; alt?: string };
+// at = tid i sekunder i avsnittets speakerröst då bilden ska visas (bildspelet följer ljudet). Saknas = ingen markering.
+export type Slide = { media_id: string; alt?: string; at?: number };
 export type SlidesContent = { slides?: Slide[]; title?: string; caption?: string; require_all?: boolean };
 
 export type Block =

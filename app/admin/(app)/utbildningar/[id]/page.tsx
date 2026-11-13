@@ -6,6 +6,7 @@ import { sql } from '@/lib/db';
 import type { Block, CertBadge } from '@/lib/types';
 import { SlideUploader } from './SlideUploader';
 import { SectionAudio } from './SectionAudio';
+import { SlideCue } from './SlideCue';
 import { audioConfigured, audioUrl } from '@/lib/audio';
 import {
   addBlock, addChapter, addSection, deleteCourse, deleteItem, moveItem, moveSectionToChapter, renameItem, setCourseStatus, updateBlock,
@@ -40,11 +41,22 @@ function MoveDelete({ table, id, label }: { table: 'chapter' | 'section' | 'bloc
   );
 }
 
+// Varnar om tidsmarkeringarna inte ökar i bildernas ordning (eleven skulle då hoppa fram och tillbaka).
+function cueWarning(slides: { at?: number }[]) {
+  let last = -1;
+  for (const sl of slides) {
+    if (typeof sl.at !== 'number') continue;
+    if (sl.at < last) return <strong style={{ display: 'block', color: 'var(--bad)', marginTop: 4 }}>Obs! Tiderna ska öka i bildernas ordning.</strong>;
+    last = sl.at;
+  }
+  return null;
+}
+
 const typeLabel: Record<Block['type'], string> = {
   text: 'Text', tip: 'Tips-ruta', image: 'Bild', video: 'Video', slides: 'Bildspel (PDF/PPT)', quiz: 'Kontrollfråga',
 };
 
-function BlockEditor({ block }: { block: Block }) {
+function BlockEditor({ block, hasAudio }: { block: Block; hasAudio: boolean }) {
   return (
     <div className="block-card">
       <div className="block-head">
@@ -107,7 +119,10 @@ function BlockEditor({ block }: { block: Block }) {
                     <span className="num">{i + 1}</span>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={`/media/${sl.media_id}`} alt="" loading="lazy" />
-                    <input type="text" name={`alt_${i}`} defaultValue={sl.alt ?? ''} aria-label={`Beskrivning av bild ${i + 1} för skärmläsare`} placeholder="Beskrivning för skärmläsare (valfri)" />
+                    <div className="stack" style={{ gap: 6, minWidth: 0 }}>
+                      <input type="text" name={`alt_${i}`} defaultValue={sl.alt ?? ''} aria-label={`Beskrivning av bild ${i + 1} för skärmläsare`} placeholder="Beskrivning för skärmläsare (valfri)" />
+                      {hasAudio && <SlideCue index={i} at={sl.at} />}
+                    </div>
                     <div className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
                       <button className="btn btn-sm" type="submit" name="op" value={`up:${i}`} disabled={i === 0} aria-label={`Flytta bild ${i + 1} uppåt`}>↑</button>
                       <button className="btn btn-sm" type="submit" name="op" value={`down:${i}`} disabled={i === all.length - 1} aria-label={`Flytta bild ${i + 1} nedåt`}>↓</button>
@@ -116,6 +131,13 @@ function BlockEditor({ block }: { block: Block }) {
                   </li>
                 ))}
               </ol>
+            )}
+            {hasAudio && (block.content.slides ?? []).length > 1 && (
+              <p className="hint small muted" style={{ margin: 0 }}>
+                Följ speakerrösten: spela ljudet ovan och tryck <strong>Sätt nu</strong> vid den bild som ska visas just då. Bilderna byts då automatiskt för eleven.
+                Lämna fältet tomt för bilder som inte ska byta automatiskt.
+                {cueWarning(block.content.slides ?? [])}
+              </p>
             )}
             <label className="field">Rubrik för skärmläsare<input type="text" name="title" defaultValue={block.content.title ?? ''} placeholder="T.ex. Presentation: Informationssäkerhet" /></label>
             <label className="field">Bildtext under bildspelet (valfri)<input type="text" name="caption" defaultValue={block.content.caption ?? ''} /></label>
@@ -383,7 +405,7 @@ export default async function EditorPage({
                     ? { url: audioUrl(current.audio.path)!, filename: current.audio.filename, size: current.audio.size, duration_s: current.audio.duration_s }
                     : null}
                 />
-                {current.blocks.map((b) => <BlockEditor key={b.id} block={b} />)}
+                {current.blocks.map((b) => <BlockEditor key={b.id} block={b} hasAudio={!!current.audio} />)}
                 <div className="card stack" style={{ borderStyle: 'dashed', gap: 10 }}>
                   <span className="small muted">Lägg till block</span>
                   <div className="row" style={{ gap: 8 }}>

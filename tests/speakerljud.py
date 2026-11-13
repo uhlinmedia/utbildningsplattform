@@ -68,26 +68,29 @@ with sync_playwright() as p:
         expect(e.get_by_role("heading", level=1)).to_be_visible()
     if not e.url.endswith(f"s={sec_id}"):
         e.goto(f"{BASE}/k/{slug}/kurs?s={sec_id}")
-    player = e.locator(".section-audio")
+    player = e.locator(".audio-mini")
     expect(player).to_contain_text("Lyssna på avsnittet · 1:15")
-    e.wait_for_function("document.querySelector('.section-audio audio').readyState >= 1", timeout=10000)
-    dur = e.evaluate("document.querySelector('.section-audio audio').duration")
+    e.wait_for_function("document.querySelector('.audio-mini audio').readyState >= 1", timeout=10000)
+    dur = e.evaluate("document.querySelector('.audio-mini audio').duration")
     assert 74 < dur < 76, dur
-    assert e.locator(".section-audio .speed").count() == 0  # hastigheten väljs i spelarens egen meny
-    e.evaluate("document.querySelector('.section-audio audio').playbackRate = 1.5")
-    e.evaluate("(() => { const a = document.querySelector('.section-audio audio'); a.currentTime = 30; a.dispatchEvent(new Event('pause')); })()")
+    assert e.locator(".audio-mini .speed").count() == 0  # hastigheten väljs i spelarens egen meny
+    e.evaluate("document.querySelector('.audio-mini audio').playbackRate = 1.5")
+    e.evaluate("(() => { const a = document.querySelector('.audio-mini audio'); a.currentTime = 30; a.dispatchEvent(new Event('pause')); })()")
     e.reload()
-    e.wait_for_function("document.querySelector('.section-audio audio').currentTime > 29", timeout=10000)
-    assert e.evaluate("document.querySelector('.section-audio audio').playbackRate") == 1.5
+    e.wait_for_function("document.querySelector('.audio-mini audio').currentTime > 29", timeout=10000)
+    assert e.evaluate("document.querySelector('.audio-mini audio').playbackRate") == 1.5
     step("elevens spelare: längd, hastighet och position sparas")
     e.screenshot(path=OUT + "/speakerljud-elev.png")
     e.evaluate("(() => { const d = document.createElement('div'); d.style.height = '3000px'; document.querySelector('.learn-content').appendChild(d); window.scrollTo(0, 2000); })()")
-    top = e.evaluate("document.querySelector('.section-audio').getBoundingClientRect().top")
-    assert abs(top) < 1, top
-    step("spelaren följer med vid scroll")
+    r = e.evaluate("(() => { const r = document.querySelector('.audio-mini-btn').getBoundingClientRect(); return [r.left, r.right, r.bottom, innerWidth, innerHeight]; })()")
+    assert r[1] <= r[3] and r[1] > r[3] - 120 and r[2] <= r[4] and r[2] > r[4] - 120, r
+    step("knappen ligger kvar i nedre högra hörnet vid scroll")
     m = b.new_context(viewport={"width": 390, "height": 844}, storage_state=ctx.storage_state()).new_page()
     m.goto(f"{BASE}/k/{slug}/kurs?s={sec_id}")
-    expect(m.locator(".section-audio")).to_be_visible()
+    expect(m.locator(".audio-mini-btn")).to_be_visible()
+    mid = m.evaluate("(() => { const r = document.querySelector('.audio-mini-btn').getBoundingClientRect(); return (r.left + r.right) / 2; })()")
+    assert abs(mid - 195) < 2, mid
+    step("mobil: knappen centrerad längst ned")
     m.screenshot(path=OUT + "/speakerljud-mobil.png")
 
     # Kopiera utbildningen → ljudfilen kopieras
@@ -118,7 +121,7 @@ with sync_playwright() as p:
     expect(a.locator(".card", has_text="Speakerröst").get_by_role("button", name="Ladda upp ljudfil")).to_be_visible()
     assert q(f"select audio is null from section where id = '{sec_id}'") == "t"
     assert second["path"] not in flog()["files"]
-    e.reload(); expect(e.get_by_role("heading", level=1)).to_be_visible(); expect(e.locator(".section-audio")).to_have_count(0)
+    e.reload(); expect(e.get_by_role("heading", level=1)).to_be_visible(); expect(e.locator(".audio-mini")).to_have_count(0)
     step("ta bort ljud (eleven ser ingen spelare)")
     assert not errors, errors
     print("ALLA TESTER FÖR SPEAKERLJUD GICK IGENOM")

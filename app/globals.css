@@ -365,3 +365,5 @@ input[type=file] { max-width: 100%; }
   .audio-mini-panel { position: fixed; left: 12px; right: 12px; width: auto; bottom: calc(var(--am-size) + 24px + env(safe-area-inset-bottom)); }
   .audio-mini-hint { position: fixed; left: 50%; translate: -50% 0; white-space: nowrap; bottom: calc(var(--am-size) + 22px + env(safe-area-inset-bottom)); }
 }
+.slide-cue { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.slide-cue input { width: 84px; min-height: 32px; padding: 4px 8px; font-variant-numeric: tabular-nums; }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { reportVideo } from '../../actions';
+import { subscribeNarration } from './SectionAudio';
 
 // Bildspel: en bild i taget med pilar, tangentbord (← →), svep på mobil och helskärm.
 // Kan kräva att eleven bläddrat igenom alla bilder; andelen sparas som "sett" (samma tabell som video).
@@ -14,6 +15,8 @@ export function SlidesBlock(props: {
   caption: string;
   requireAll: boolean;
   initialPercent: number;
+  // Tid (sekunder) i speakerrösten per bild; null = ingen markering. Saknas helt = bildspelet följer inte ljudet.
+  cues?: (number | null)[];
 }) {
   const { slug, blockId, slides, requireAll } = props;
   const n = slides.length;
@@ -40,6 +43,32 @@ export function SlidesBlock(props: {
       });
     }
   }, [i, n, slug, blockId, requireAll, router]);
+
+  // Följ speakerrösten: när ljudet passerar en bilds tid visas bilden. Bläddrar eleven själv får hen
+  // titta i fred tills nästa markering passeras. Spolar eleven i ljudet hoppar bildspelet till rätt bild.
+  const cues = props.cues;
+  const follows = !!cues && cues.some((c) => typeof c === 'number');
+  useEffect(() => {
+    if (!follows || !cues) return;
+    const marks = cues
+      .map((at, idx) => ({ at: idx === 0 && at == null ? 0 : at, idx }))
+      .filter((m): m is { at: number; idx: number } => typeof m.at === 'number')
+      .sort((x, y) => x.at - y.at);
+    const target = (t: number) => {
+      let found = -1;
+      for (const m of marks) if (m.at <= t + 0.05) found = m.idx;
+      return found;
+    };
+    let last = -2;
+    return subscribeNarration((t, kind) => {
+      const tgt = target(t);
+      if (tgt < 0) return;
+      if (kind === 'seek' || tgt !== last) {
+        if (tgt !== last || kind === 'seek') go(tgt);
+        last = tgt;
+      }
+    });
+  }, [follows, cues, go]);
 
   // Förladda nästa bild så att bläddring går direkt.
   useEffect(() => {
@@ -154,6 +183,7 @@ export function SlidesBlock(props: {
         </button>
       </div>
       {props.caption && <figcaption className="small muted">{props.caption}</figcaption>}
+      {follows && <p className="small muted" style={{ margin: 0 }}>Bilderna byts i takt med speakerrösten.</p>}
       {requireAll && (
         <p className="small muted" style={{ margin: 0 }}>
           {percent >= 100 ? 'Alla bilder är visade – du kan gå vidare.' : `Bläddra igenom alla bilder för att gå vidare (${Math.round((percent / 100) * n)} av ${n} visade).`}

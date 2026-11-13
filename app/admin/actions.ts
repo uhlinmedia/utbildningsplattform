@@ -455,6 +455,19 @@ export async function addBlock(fd: FormData) {
   done();
 }
 
+// Tidsmarkering för bildspel: "1:23", "83" eller "83,5" → sekunder. Tomt eller ogiltigt → ingen markering.
+function parseCue(v: string): number | undefined {
+  const t = v.trim().replace(',', '.');
+  if (!t) return undefined;
+  const m = /^(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(t);
+  if (!m) return undefined;
+  const sec = (m[1] ? Number(m[1]) * 60 : 0) + Number(m[2]);
+  return Number.isFinite(sec) && sec >= 0 && sec < 24 * 3600 ? Math.round(sec * 10) / 10 : undefined;
+}
+function cueField(at: number | undefined): { at?: number } {
+  return typeof at === 'number' ? { at } : {};
+}
+
 export async function updateBlock(fd: FormData) {
   await authorize('block', s(fd, 'block_id') || s(fd, 'id'), 'edit');
   const id = s(fd, 'block_id') || s(fd, 'id');
@@ -490,6 +503,7 @@ export async function updateBlock(fd: FormData) {
       let slides: Slide[] = ((b.content.slides as Slide[] | undefined) ?? []).map((x, i) => ({
         media_id: x.media_id,
         alt: fd.has(`alt_${i}`) ? s(fd, `alt_${i}`).slice(0, 300) : x.alt ?? '',
+        ...cueField(fd.has(`at_${i}`) ? parseCue(s(fd, `at_${i}`)) : x.at),
       }));
       const [op, idxStr] = s(fd, 'op').split(':');
       const idx = Number(idxStr);

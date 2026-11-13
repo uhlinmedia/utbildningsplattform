@@ -176,6 +176,7 @@ export default async function CoursePage({
                       caption={b.content.caption ?? ''}
                       requireAll={!!b.content.require_all}
                       initialPercent={progress.videos.get(b.id) ?? 0}
+                      cues={current.audio && audioUrl(current.audio.path) ? slides.map((x) => (typeof x.at === 'number' ? x.at : null)) : undefined}
                     />
                   );
                 }

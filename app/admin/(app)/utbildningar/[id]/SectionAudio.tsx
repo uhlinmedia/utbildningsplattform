@@ -93,7 +93,7 @@ export function SectionAudio({ sectionId, current, configured }: { sectionId: st
         <>
           {current && (
             <div className="stack" style={{ gap: 6 }}>
-              <audio controls preload="metadata" src={current.url} style={{ width: '100%' }} />
+              <audio data-avsnittsljud controls preload="metadata" src={current.url} style={{ width: '100%' }} />
               <span className="small muted">
                 {current.filename}
                 {current.duration_s ? ` · ${formatDuration(current.duration_s)}` : ''}

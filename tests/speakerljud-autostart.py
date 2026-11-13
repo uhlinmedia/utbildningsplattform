@@ -19,7 +19,7 @@ def tone(path, seconds, hz):
 
 ljud1 = OUT + "/autostart-1.wav"; tone(ljud1, 20, 440)
 ljud2 = OUT + "/autostart-2.wav"; tone(ljud2, 20, 550)
-PLAYING = "(() => { const a = document.querySelector('.section-audio audio'); return !!a && !a.paused && a.currentTime > 0; })()"
+PLAYING = "(() => { const a = document.querySelector('.audio-mini audio'); return !!a && !a.paused && a.currentTime > 0; })()"
 
 with sync_playwright() as p:
     b = p.chromium.launch(args=["--no-sandbox"])
@@ -77,7 +77,7 @@ with sync_playwright() as p:
     e.wait_for_timeout(3000)
     expect(tap).to_be_visible(timeout=10000)
     step("spärrat ljud visar Tryck för att lyssna")
-    tap.click()
+    tap.click(force=True)  # pratbubblan gungar (animation), så Playwright väntar annars förgäves på att den ska stå still
     e.wait_for_function(PLAYING, timeout=10000)
     expect(tap).to_have_count(0)
     step("trycket startar ljudet")
@@ -87,7 +87,7 @@ with sync_playwright() as p:
     e.wait_for_url(f"**s={secs[1]}")
     e.wait_for_function(PLAYING, timeout=10000)
     assert secs[1] != secs[0]
-    src = e.evaluate("document.querySelector('.section-audio audio').src")
+    src = e.evaluate("document.querySelector('.audio-mini audio').src")
     assert q(f"select audio->>'path' from section where id = '{secs[1]}'") in src, src
     expect(e.get_by_role("button", name="Tryck för att lyssna")).to_have_count(0)
     step("nästa avsnitt startar automatiskt")
@@ -96,18 +96,18 @@ with sync_playwright() as p:
     e.evaluate(f"localStorage.setItem('briondo-ljud-klar-{secs[0]}', '1')")
     e.locator(f".nav-desktop a[href*='s={secs[0]}']").click()
     e.wait_for_url(f"**s={secs[0]}")
-    e.wait_for_function("document.querySelector('.section-audio audio')?.readyState >= 1", timeout=10000)
+    e.wait_for_function("document.querySelector('.audio-mini audio')?.readyState >= 1", timeout=10000)
     e.wait_for_timeout(800)
-    assert e.evaluate("document.querySelector('.section-audio audio').paused") is True
+    assert e.evaluate("document.querySelector('.audio-mini audio').paused") is True
     step("redan lyssnat avsnitt startar inte igen")
 
     # Avstängt: inget startar av sig självt
     q(f"update course set audio_autoplay = false where id = '{course_id}'")
     e.locator(f".nav-desktop a[href*='s={secs[1]}']").click()
     e.wait_for_url(f"**s={secs[1]}")
-    e.wait_for_function("document.querySelector('.section-audio audio')?.readyState >= 1", timeout=10000)
+    e.wait_for_function("document.querySelector('.audio-mini audio')?.readyState >= 1", timeout=10000)
     e.wait_for_timeout(800)
-    assert e.evaluate("document.querySelector('.section-audio audio').paused") is True
+    assert e.evaluate("document.querySelector('.audio-mini audio').paused") is True
     step("utan inställningen startar inget automatiskt")
 
     # Städa: ta bort testljuden och återställ

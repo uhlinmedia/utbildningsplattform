@@ -27,6 +27,17 @@ function player() {
   return shared;
 }
 
+// Låter t.ex. bildspel följa speakerrösten. kind = 'play' när ljudet spelar framåt, 'seek' när eleven
+// (eller sparad position) spolar. Anropas inte för den korta tystnaden som låser upp spelaren.
+export function subscribeNarration(cb: (time: number, kind: 'play' | 'seek') => void): () => void {
+  const a = player();
+  const onTime = () => { if (!a.paused && a.src !== SILENCE) cb(a.currentTime, 'play'); };
+  const onSeek = () => { if (a.src !== SILENCE) cb(a.currentTime, 'seek'); };
+  a.addEventListener('timeupdate', onTime);
+  a.addEventListener('seeked', onSeek);
+  return () => { a.removeEventListener('timeupdate', onTime); a.removeEventListener('seeked', onSeek); };
+}
+
 // Lyssnar efter elevens första tryck eller tangent och låser då upp spelaren genom att spela en kort
 // tystnad (gäller resten av besöket). Görs bara när spelaren inte har något avsnittsljud laddat; i ett
 // avsnitt med ljud är elevens tryck på spela-knappen i sig det som låser upp.
