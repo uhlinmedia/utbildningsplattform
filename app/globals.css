@@ -323,7 +323,31 @@ input[type=file] { max-width: 100%; }
 .mina-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 
 /* Speakerröst överst i avsnittet; följer med när eleven scrollar. */
-.section-audio { position: sticky; top: 0; z-index: 5; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 4px 14px rgba(27, 36, 48, .06); }
 .section-audio-title { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--brand); }
 .section-audio-title .muted { color: var(--muted); }
-.section-audio-tap { align-self: flex-start; }
+
+/* Minimerad speakerröst (nedre högra hörnet) */
+.learn-main:has(.audio-mini) { padding-bottom: 96px; }
+.audio-mini { position: fixed; right: 20px; bottom: 20px; z-index: 40; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.audio-mini-dock { display: flex; align-items: stretch; }
+.audio-mini-btn { position: relative; z-index: 1; width: 56px; height: 56px; display: grid; place-items: center; border: 2px solid #fff; border-radius: 16px; background: var(--brand); color: #fff; cursor: pointer; box-shadow: 0 6px 18px rgba(27, 36, 48, .22); transition: transform .15s; }
+.audio-mini-btn:hover { transform: scale(1.04); }
+.audio-mini-btn:focus-visible, .audio-mini-tab button:focus-visible, .audio-mini-close:focus-visible { outline: 3px solid var(--brand-accent-light); outline-offset: 2px; }
+.audio-mini-tab { order: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; margin-left: -14px; padding: 4px 4px 4px 16px; border-radius: 0 16px 16px 0; background: var(--ink); box-shadow: 0 6px 18px rgba(27, 36, 48, .22);
+  opacity: 0; transform: translateX(-12px); pointer-events: none; transition: opacity .15s, transform .15s; }
+.audio-mini-dock:hover .audio-mini-tab, .audio-mini-dock:focus-within .audio-mini-tab, .audio-mini.is-open .audio-mini-tab { opacity: 1; transform: none; pointer-events: auto; }
+.audio-mini-tab button { width: 26px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 6px; background: none; color: #fff; cursor: pointer; padding: 0; }
+.audio-mini-tab button:hover { background: rgba(255, 255, 255, .14); }
+.audio-mini-panel { width: min(360px, calc(100vw - 40px)); display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 8px 24px rgba(27, 36, 48, .16); }
+.audio-mini-panel[hidden] { display: none; }
+.audio-mini-close { width: 28px; height: 28px; border: 0; border-radius: 6px; background: none; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer; }
+.audio-mini-close:hover { background: var(--ground); color: var(--ink); }
+.audio-mini-hint { padding: 8px 12px; border: 0; border-radius: 10px; background: var(--ink); color: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 18px rgba(27, 36, 48, .22); animation: audio-hint 1.6s ease-in-out infinite; }
+.audio-mini .wave { animation: audio-wave 1.4s ease-in-out infinite; }
+.audio-mini .wave-2 { animation-delay: .25s; }
+@keyframes audio-wave { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+@keyframes audio-hint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+/* Pekskärm (ingen hovring): fliken syns alltid */
+@media (hover: none) { .audio-mini-tab { opacity: 1; transform: none; pointer-events: auto; } }
+@media (max-width: 640px) { .audio-mini { right: 12px; bottom: 12px; } .audio-mini-btn { width: 50px; height: 50px; border-radius: 14px; } }
+@media (prefers-reduced-motion: reduce) { .audio-mini .wave, .audio-mini-hint { animation: none; } .audio-mini-btn, .audio-mini-tab { transition: none; } }

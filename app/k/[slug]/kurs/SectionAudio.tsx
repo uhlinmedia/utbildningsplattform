@@ -56,6 +56,8 @@ export function SectionAudio({
 }: { sectionId: string; src: string; durationS: number | null; autoplay?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const [blocked, setBlocked] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [open, setOpen] = useState(false);
   const posKey = `briondo-ljud-${sectionId}`;
   const doneKey = `briondo-ljud-klar-${sectionId}`;
 
@@ -75,7 +77,9 @@ export function SectionAudio({
       store.set(posKey, String(Math.floor(a.currentTime)));
     };
     const ended = () => { store.set(posKey, '0'); store.set(doneKey, '1'); };
-    const playing = () => { unlocked = true; setBlocked(false); };
+    const playing = () => { unlocked = true; setBlocked(false); setPlaying(true); };
+    const stopped = () => setPlaying(false);
+    setPlaying(!a.paused && !a.ended);
     const rateChanged = () => {
       if (a.src === SILENCE || a.readyState < 1) return; // inte vid laddning av ny fil
       a.defaultPlaybackRate = a.playbackRate;
@@ -94,6 +98,8 @@ export function SectionAudio({
     a.addEventListener('pause', save);
     a.addEventListener('ended', ended);
     a.addEventListener('playing', playing);
+    a.addEventListener('pause', stopped);
+    a.addEventListener('ended', stopped);
     a.addEventListener('ratechange', rateChanged);
     if (currentSrc !== src) {
       currentSrc = src;
@@ -110,6 +116,8 @@ export function SectionAudio({
       a.removeEventListener('pause', save);
       a.removeEventListener('ended', ended);
       a.removeEventListener('playing', playing);
+      a.removeEventListener('pause', stopped);
+      a.removeEventListener('ended', stopped);
       a.removeEventListener('ratechange', rateChanged);
       a.removeEventListener('loadedmetadata', start);
       save();
@@ -120,28 +128,69 @@ export function SectionAudio({
     };
   }, [src, posKey, doneKey, autoplay]);
 
-  function tapToPlay() {
-    player().play().then(() => setBlocked(false)).catch(() => setBlocked(true));
+  function toggle() {
+    const a = player();
+    if (a.paused || a.ended) {
+      a.play().then(() => setBlocked(false)).catch(() => setBlocked(true));
+    } else {
+      a.pause();
+    }
   }
 
-  const mins = durationS ? `${Math.floor(durationS / 60)}:${String(durationS % 60).padStart(2, '0')}` : null;
+  // Esc stänger den utfällda spelaren.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
 
+  const mins = durationS ? `${Math.floor(durationS / 60)}:${String(durationS % 60).padStart(2, '0')}` : null;
+  const label = playing ? 'Pausa speakerrösten' : 'Lyssna på avsnittet';
+
+  // Minimerad spelare i nedre högra hörnet: stor knapp spelar/pausar, fliken bredvid har
+  // spela/pausa och kugghjul som fäller ut hela spelaren (spola, hastighet, volym).
   return (
-    <section className="section-audio" aria-label="Lyssna på avsnittet">
-      <div className="row between" style={{ gap: 8 }}>
-        <span className="section-audio-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M11 5 6 9H2v6h4l5 4V5z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a10 10 0 0 1 0 14" />
-          </svg>
-          Lyssna på avsnittet{mins && <span className="muted" style={{ fontWeight: 400 }}> · {mins}</span>}
-        </span>
+    <section className={`audio-mini${playing ? ' is-playing' : ''}${open ? ' is-open' : ''}`} aria-label="Speakerröst">
+      <div className="audio-mini-panel" hidden={!open}>
+        <div className="row between" style={{ gap: 8 }}>
+          <span className="section-audio-title">
+            Lyssna på avsnittet{mins && <span className="muted" style={{ fontWeight: 400 }}> · {mins}</span>}
+          </span>
+          <button type="button" className="audio-mini-close" onClick={() => setOpen(false)} aria-label="Stäng spelaren">×</button>
+        </div>
+        <div ref={host} />
       </div>
-      {blocked && (
-        <button type="button" className="btn btn-primary section-audio-tap" onClick={tapToPlay}>
-          ▶ Tryck för att lyssna
-        </button>
+
+      {blocked && !open && (
+        <button type="button" className="audio-mini-hint" onClick={toggle}>Tryck för att lyssna</button>
       )}
-      <div ref={host} />
+
+      <div className="audio-mini-dock">
+        <button type="button" className="audio-mini-btn" onClick={toggle} aria-label={label} title={label} aria-pressed={playing}>
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" transform={playing ? undefined : 'translate(4 0)'} />
+            {playing && (
+              <>
+                <path className="wave wave-1" d="M15.5 8.5a5 5 0 0 1 0 7" />
+                <path className="wave wave-2" d="M18.5 5.5a9.5 9.5 0 0 1 0 13" />
+              </>
+            )}
+          </svg>
+        </button>
+        <div className="audio-mini-tab">
+          <button type="button" onClick={toggle} aria-label={label} title={label}>
+            {playing ? (
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.5" /><rect x="14" y="5" width="4" height="14" rx="1.5" /></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" /></svg>
+            )}
+          </button>
+          <button type="button" onClick={() => setOpen((o) => !o)} aria-label={open ? 'Dölj spelaren' : 'Visa hela spelaren'} title={open ? 'Dölj spelaren' : 'Visa hela spelaren'} aria-expanded={open}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+          </button>
+        </div>
+      </div>
     </section>
   );
 }
