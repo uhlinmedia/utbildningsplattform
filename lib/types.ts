@@ -33,7 +33,11 @@ export type Block =
   | { id: string; position: number; type: 'quiz'; content: QuizContent };
 
 // Speakerröst för ett avsnitt. Filen ligger i Supabase Storage (se lib/audio.ts).
-export type SectionAudio = { path: string; filename: string; mime: string; size: number; duration_s: number | null };
+// tts = rösten är skapad med AI-uppläsning; text, röst och stil sparas så att den kan skapas om.
+export type SectionAudio = {
+  path: string; filename: string; mime: string; size: number; duration_s: number | null;
+  tts?: { voice: string; style: string; text: string; model: string };
+};
 
 export type Section = { id: string; title: string; position: number; audio: SectionAudio | null; blocks: Block[] };
 export type Chapter = { id: string; title: string; position: number; sections: Section[] };

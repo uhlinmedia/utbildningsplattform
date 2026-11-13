@@ -10,7 +10,8 @@ import { slugify } from '@/lib/course';
 import { parseVimeo } from '@/lib/vimeo';
 import { parseYouTube } from '@/lib/youtube';
 import type { QuizOption, SectionAudio, Slide } from '@/lib/types';
-import { AUDIO_EXT, AUDIO_MAX_BYTES, audioInfo, copyAudio, createUploadUrl, extOf, isAudioPath, removeAudio } from '@/lib/audio';
+import { AUDIO_EXT, AUDIO_MAX_BYTES, audioInfo, copyAudio, createUploadUrl, extOf, isAudioPath, removeAudio, uploadAudio } from '@/lib/audio';
+import { synthesize, TTS_MAX_CHARS, TTS_MODEL, TTS_VOICES, TtsError, ttsConfigured } from '@/lib/tts';
 
 const s = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 const done = () => revalidatePath('/admin', 'layout');
@@ -407,6 +408,51 @@ export async function saveSectionAudio(
   await sql`update section set audio = ${sql.json(audio as never)} where id = ${sectionId}`;
   if (old?.path && old.path !== path) await removeAudio([old.path]);
   await audit(ctx.user, ctx.customerId, 'avsnittsljud_sparat', { section_id: sectionId, filename: audio.filename });
+  done();
+  return { ok: true };
+}
+
+// AI-uppläsning: skapar speakerrösten från text med Google Gemini TTS och kopplar den till avsnittet
+// (ett tidigare ljud tas bort). Bara superadmin, eftersom varje uppläsning kostar (lite) pengar.
+export async function generateSectionAudio(
+  sectionId: string, text: string, voice: string, style: string,
+): Promise<AudioResult> {
+  let ctx;
+  try {
+    ctx = await authorize('section', String(sectionId), 'edit');
+  } catch (e) {
+    return noAccess(e);
+  }
+  if (ctx.user.role !== 'superadmin') return { ok: false, error: 'Bara Briondos administratör kan skapa AI-röster.' };
+  if (!ttsConfigured()) return { ok: false, error: 'AI-uppläsning är inte inställd: GEMINI_API_KEY saknas.' };
+  const t = String(text ?? '').trim();
+  if (!t) return { ok: false, error: 'Skriv eller klistra in texten som ska läsas upp.' };
+  if (t.length > TTS_MAX_CHARS) return { ok: false, error: `Texten får vara högst ${TTS_MAX_CHARS.toLocaleString('sv-SE')} tecken. Dela upp avsnittet.` };
+  const v = TTS_VOICES.some((x) => x.id === voice) ? voice : TTS_VOICES[0].id;
+  const st = String(style ?? '').trim().slice(0, 300);
+  let path: string;
+  let durationS: number;
+  try {
+    const out = await synthesize(t, v, st);
+    durationS = out.durationS;
+    path = await uploadAudio(out.mp3, 'mp3');
+  } catch (err) {
+    if (!(err instanceof TtsError)) console.error('AI-uppläsning misslyckades', err);
+    return { ok: false, error: err instanceof TtsError ? err.message : 'Rösten kunde inte skapas. Försök igen.' };
+  }
+  const info = await audioInfo(path);
+  const audio: SectionAudio = {
+    path,
+    filename: `AI-röst (${v}).mp3`,
+    mime: AUDIO_EXT.mp3,
+    size: info?.size ?? 0,
+    duration_s: durationS > 0 ? durationS : null,
+    tts: { voice: v, style: st, text: t, model: TTS_MODEL },
+  };
+  const [old] = await sql<{ path: string | null }[]>`select audio->>'path' as path from section where id = ${sectionId}`;
+  await sql`update section set audio = ${sql.json(audio as never)} where id = ${sectionId}`;
+  if (old?.path && old.path !== path) await removeAudio([old.path]);
+  await audit(ctx.user, ctx.customerId, 'avsnittsljud_ai_skapat', { section_id: sectionId, voice: v, chars: t.length });
   done();
   return { ok: true };
 }

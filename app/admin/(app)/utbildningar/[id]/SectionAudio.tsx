@@ -2,9 +2,11 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { prepareSectionAudio, removeSectionAudio, saveSectionAudio } from '../../../actions';
+import { generateSectionAudio, prepareSectionAudio, removeSectionAudio, saveSectionAudio } from '../../../actions';
 
 type Current = { url: string; filename: string; size: number; duration_s: number | null } | null;
+// AI-uppläsning (bara superadmin och när GEMINI_API_KEY finns): förifylld text, röst och stil.
+type Ai = { voices: { id: string; label: string }[]; voice: string; style: string; text: string; fromAi: boolean } | null;
 
 function formatDuration(s: number | null | undefined) {
   if (!s) return '';
@@ -42,11 +44,31 @@ function upload(url: string, file: File, onProgress: (p: number) => void): Promi
   });
 }
 
-export function SectionAudio({ sectionId, current, configured }: { sectionId: string; current: Current; configured: boolean }) {
+export function SectionAudio({ sectionId, current, configured, ai = null }: { sectionId: string; current: Current; configured: boolean; ai?: Ai }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aiText, setAiText] = useState(ai?.text ?? '');
+  const [aiVoice, setAiVoice] = useState(ai?.voice ?? '');
+  const [aiStyle, setAiStyle] = useState(ai?.style ?? '');
+
+  async function onGenerate() {
+    if (!ai) return;
+    if (current && !confirm('Den nuvarande speakerrösten ersätts med en ny AI-röst. Fortsätta?')) return;
+    setError(null);
+    const minutes = Math.max(1, Math.round(aiText.length / 900));
+    setBusy(`Skapar AI-röst … (ca ${minutes} min tal, kan ta upp till en minut)`);
+    try {
+      const res = await generateSectionAudio(sectionId, aiText, aiVoice, aiStyle);
+      if (!res.ok) throw new Error(res.error);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Något gick fel.');
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function onFile(file: File | undefined) {
     if (!file) return;
@@ -83,7 +105,7 @@ export function SectionAudio({ sectionId, current, configured }: { sectionId: st
     <div className="card stack" style={{ gap: 10 }}>
       <div className="row between">
         <strong>Speakerröst</strong>
-        <span className="small muted">Spelas upp överst i avsnittet för eleven</span>
+        <span className="small muted">Eleven lyssnar via ljudknappen i kursvyn</span>
       </div>
       {!configured ? (
         <p className="small muted" style={{ margin: 0 }}>
@@ -118,6 +140,34 @@ export function SectionAudio({ sectionId, current, configured }: { sectionId: st
             )}
             {busy && <span className="small muted" role="status">{busy}</span>}
           </div>
+          {ai && (
+            <details className="ai-voice" open={!current}>
+              <summary>{current ? 'Skapa om med AI-uppläsning' : 'Skapa röst från text (AI-uppläsning)'}</summary>
+              <div className="stack" style={{ gap: 10, marginTop: 10 }}>
+                <label className="field">Text som läses upp
+                  <span className="hint">Förifylld med avsnittets text. Ändra fritt – t.ex. skriv ut förkortningar och siffror som de ska uttalas.</span>
+                  <textarea name="ai_text" rows={8} value={aiText} onChange={(e) => setAiText(e.target.value)} disabled={!!busy} />
+                  <span className="small muted">{aiText.length.toLocaleString('sv-SE')} tecken · ca {Math.max(1, Math.round(aiText.length / 900))} min</span>
+                </label>
+                <div className="row" style={{ gap: 12, alignItems: 'flex-end' }}>
+                  <label className="field" style={{ flex: '1 1 200px' }}>Röst
+                    <select name="ai_voice" value={aiVoice} onChange={(e) => setAiVoice(e.target.value)} disabled={!!busy}>
+                      {ai.voices.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="field" style={{ flex: '3 1 320px' }}>Stil
+                    <input type="text" name="ai_style" value={aiStyle} onChange={(e) => setAiStyle(e.target.value)} disabled={!!busy} />
+                  </label>
+                </div>
+                <div className="row" style={{ gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" type="button" onClick={onGenerate} disabled={!!busy || !aiText.trim()}>
+                    {current ? 'Skapa ny AI-röst' : 'Skapa AI-röst'}
+                  </button>
+                  <span className="hint small muted">Google Gemini TTS. Lyssna i spelaren ovan när den är klar och skapa om vid behov.</span>
+                </div>
+              </div>
+            </details>
+          )}
           <span className="hint small muted">MP3, M4A, AAC eller WAV, högst 50 MB. MP3 eller M4A rekommenderas (mindre filer, spelas överallt).</span>
           {error && <p className="error" role="alert" style={{ margin: 0 }}>{error}</p>}
         </>

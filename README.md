@@ -45,6 +45,8 @@ python3 tests/kundkonton.py        # konton, roller, avskild data, personregiste
 python3 tests/bildspel.py          # YouTube, bildspel från PDF/bilder, bredare innehållsyta, körs efter e2e.py (behöver DATABASE_URL)
 python3 tests/speakerljud.py       # speakerröst per avsnitt, körs efter e2e.py (kräver node tests/fake-storage.mjs, se filen)
 python3 tests/speakerljud-autostart.py  # automatisk start av speakerrösten, samma förutsättningar
+python3 tests/bildspel-ljud.py     # bildspel som följer speakerrösten, samma förutsättningar
+python3 tests/ai-rost.py          # AI-uppläsning (kräver även node tests/fake-gemini.mjs, se filen)
 ```
 
 ## Bildspel
@@ -55,6 +57,7 @@ Varje avsnitt kan ha en inspelad speakerröst (MP3, M4A, AAC eller WAV, högst 5
 - Kräver `SUPABASE_URL` och `SUPABASE_SERVICE_ROLE_KEY` (se `.env.example`). Utan dem fungerar allt annat och editorn visar en upplysning.
 - Migreringen `008_section_audio.sql` lägger till `section.audio` och skapar bucketen. Går det inte att skapa bucketen skapas den för hand under Storage i Supabase (namn `avsnittsljud`, Public).
 - **Starta speakerrösten automatiskt** (utbildningens inställningar, av som standard, migrering `009_audio_autoplay.sql`): ljudet startar när eleven öppnar ett avsnitt, om eleven inte redan lyssnat klart i den webbläsaren. Webbläsare spärrar ljud tills eleven har tryckt någonstans; då visas knappen *Tryck för att lyssna*. En enda ljudspelare används för hela besöket och låses upp av elevens första tryck, så att även iPhone kan starta följande avsnitt av sig själv.
+- **AI-uppläsning** (`lib/tts.ts`): superadmin kan skapa speakerrösten från text med Google Gemini TTS (`gemini-3.8-flash-tts`, Interactions API). Texten förifylls med avsnittets text, röst (30 st) och stil väljs; lång text delas i delar (högst 3 000 tecken, tre åt gången), ljudet kodas till MP3 (24 kHz mono, 64 kbit/s) och sparas i Storage som en uppladdad fil. Kräver `GEMINI_API_KEY` (betalnivå, så att texten inte används av Google för träning).
 - Byts eller tas ljudet bort, eller raderas avsnittet, kapitlet eller utbildningen, tas filen bort i Storage. Kopieras en utbildning kopieras ljudfilerna.
 
 ## Driftsättning (Supabase + Vercel)

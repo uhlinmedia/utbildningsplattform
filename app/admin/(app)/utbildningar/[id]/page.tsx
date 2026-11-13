@@ -8,12 +8,15 @@ import { SlideUploader } from './SlideUploader';
 import { SectionAudio } from './SectionAudio';
 import { SlideCue } from './SlideCue';
 import { audioConfigured, audioUrl } from '@/lib/audio';
+import { markdownToSpeech, TTS_DEFAULT_STYLE, TTS_VOICES, ttsConfigured } from '@/lib/tts';
 import {
   addBlock, addChapter, addSection, deleteCourse, deleteItem, moveItem, moveSectionToChapter, renameItem, setCourseStatus, updateBlock,
   updateCourseSettings,
 } from '../../../actions';
 
 export const dynamic = 'force-dynamic';
+// AI-uppläsning av långa avsnitt kan ta en stund (servern väntar på Google).
+export const maxDuration = 300;
 
 // Postgres-kolumnen är av typen date och kommer som Date-objekt; datumfältet vill ha ÅÅÅÅ-MM-DD.
 function dateValue(d: Date | string | null): string {
@@ -404,6 +407,16 @@ export default async function EditorPage({
                   current={current.audio && audioUrl(current.audio.path)
                     ? { url: audioUrl(current.audio.path)!, filename: current.audio.filename, size: current.audio.size, duration_s: current.audio.duration_s }
                     : null}
+                  ai={user.role === 'superadmin' && ttsConfigured() && audioConfigured() ? {
+                    voices: TTS_VOICES,
+                    voice: current.audio?.tts?.voice ?? TTS_VOICES[0].id,
+                    style: current.audio?.tts?.style ?? TTS_DEFAULT_STYLE,
+                    text: current.audio?.tts?.text ?? current.blocks
+                      .map((b) => (b.type === 'text' ? markdownToSpeech(b.content.markdown) : b.type === 'tip' ? b.content.text.trim() : ''))
+                      .filter(Boolean)
+                      .join('\n\n'),
+                    fromAi: !!current.audio?.tts,
+                  } : null}
                 />
                 {current.blocks.map((b) => <BlockEditor key={b.id} block={b} hasAudio={!!current.audio} />)}
                 <div className="card stack" style={{ borderStyle: 'dashed', gap: 10 }}>

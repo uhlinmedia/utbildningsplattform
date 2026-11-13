@@ -59,6 +59,17 @@ export async function createUploadUrl(ext: string) {
   return { path, uploadUrl: `${e.url}/storage/v1${data.url}` };
 }
 
+// Laddar upp en fil som servern själv har skapat (t.ex. AI-uppläsning) och returnerar sökvägen.
+export async function uploadAudio(data: Buffer, ext: keyof typeof AUDIO_EXT & string) {
+  const { path, uploadUrl } = await createUploadUrl(ext);
+  const body = new FormData();
+  body.append('cacheControl', '31536000');
+  body.append('', new Blob([new Uint8Array(data)], { type: AUDIO_EXT[ext] }), path);
+  const res = await fetch(uploadUrl, { method: 'PUT', headers: { 'x-upsert': 'false' }, body, cache: 'no-store' });
+  if (!res.ok) throw new Error(`Uppladdningen till Storage misslyckades (${res.status}).`);
+  return path;
+}
+
 // Kontrollerar att filen finns och returnerar storlek och typ.
 export async function audioInfo(path: string) {
   const url = audioUrl(path);
