@@ -31,7 +31,10 @@ export type Block =
   | { id: string; position: number; type: 'slides'; content: SlidesContent }
   | { id: string; position: number; type: 'quiz'; content: QuizContent };
 
-export type Section = { id: string; title: string; position: number; blocks: Block[] };
+// Speakerröst för ett avsnitt. Filen ligger i Supabase Storage (se lib/audio.ts).
+export type SectionAudio = { path: string; filename: string; mime: string; size: number; duration_s: number | null };
+
+export type Section = { id: string; title: string; position: number; audio: SectionAudio | null; blocks: Block[] };
 export type Chapter = { id: string; title: string; position: number; sections: Section[] };
 
 export type Course = {

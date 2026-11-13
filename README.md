@@ -1,6 +1,6 @@
 # Utbildningsplattform
 
-Webbaserad plattform för att bygga och leverera utbildningar till kunder: kapitel och avsnitt med text, bild, video (Vimeo eller YouTube), bildspel (PDF/PowerPoint som bilder med pilar) och kontrollfrågor, certifikat med QR-verifiering, statistik med Excel-export och automatisk GDPR-gallring.
+Webbaserad plattform för att bygga och leverera utbildningar till kunder: kapitel och avsnitt med text, bild, video (Vimeo eller YouTube), bildspel (PDF/PowerPoint som bilder med pilar), kontrollfrågor och speakerröst per avsnitt, certifikat med QR-verifiering, statistik med Excel-export och automatisk GDPR-gallring.
 
 ## Innehåll
 | Del | Adress |
@@ -43,10 +43,17 @@ python3 tests/forhandsvisning.py   # varning vid osparade ändringar + förhands
 python3 tests/kundgranskning.py    # förhandsvisningslänk för kund, körs efter e2e.py (behöver DATABASE_URL och pypdf)
 python3 tests/kundkonton.py        # konton, roller, avskild data, personregister, elevinloggning (kräver MAIL_DIR=tests/out/mail på servern)
 python3 tests/bildspel.py          # YouTube, bildspel från PDF/bilder, bredare innehållsyta, körs efter e2e.py (behöver DATABASE_URL)
+python3 tests/speakerljud.py       # speakerröst per avsnitt, körs efter e2e.py (kräver node tests/fake-storage.mjs, se filen)
 ```
 
 ## Bildspel
 Blocket *Bildspel (PDF/PPT)* visar flera bilder i samma yta med pilar, tangentbord, svep och helskärm. En PDF görs om till en bild per sida **i adminens webbläsare** (pdf.js, 1920 px breda JPG), och varje sida laddas upp för sig så att storleksgränsen för serveranrop aldrig nås. PowerPoint sparas först som PDF. Valfritt krav: eleven måste bläddra igenom alla bilder (sparas i `video_progress` som 100 %).
+
+## Speakerröst
+Varje avsnitt kan ha en inspelad speakerröst (MP3, M4A, AAC eller WAV, högst 50 MB) som spelas överst i avsnittet och följer med när eleven scrollar (hastighet 0,75–1,5×, minns positionen i webbläsaren). Inget lyssningskrav. Filerna ligger i **Supabase Storage**, den publika bucketen `avsnittsljud` med slumpade filnamn, inte i databasen: Vercel stoppar svar över ca 4,5 MB och Safari spelar bara ljud från servrar som stöder delvisa hämtningar. Adminens webbläsare laddar upp direkt till Storage via en tillfällig länk (`lib/audio.ts`).
+- Kräver `SUPABASE_URL` och `SUPABASE_SERVICE_ROLE_KEY` (se `.env.example`). Utan dem fungerar allt annat och editorn visar en upplysning.
+- Migreringen `008_section_audio.sql` lägger till `section.audio` och skapar bucketen. Går det inte att skapa bucketen skapas den för hand under Storage i Supabase (namn `avsnittsljud`, Public).
+- Byts eller tas ljudet bort, eller raderas avsnittet, kapitlet eller utbildningen, tas filen bort i Storage. Kopieras en utbildning kopieras ljudfilerna.
 
 ## Driftsättning (Supabase + Vercel)
 

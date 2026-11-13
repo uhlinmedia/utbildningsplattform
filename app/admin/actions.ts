@@ -9,7 +9,8 @@ import { audit, authorize, authorizeRole, type Kind } from '@/lib/access';
 import { slugify } from '@/lib/course';
 import { parseVimeo } from '@/lib/vimeo';
 import { parseYouTube } from '@/lib/youtube';
-import type { QuizOption, Slide } from '@/lib/types';
+import type { QuizOption, SectionAudio, Slide } from '@/lib/types';
+import { AUDIO_EXT, AUDIO_MAX_BYTES, audioInfo, copyAudio, createUploadUrl, extOf, isAudioPath, removeAudio } from '@/lib/audio';
 
 const s = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 const done = () => revalidatePath('/admin', 'layout');
@@ -178,7 +179,9 @@ export async function deleteCourse(fd: FormData) {
   // Raderar även all elevdata och alla certifikat för utbildningen – därför kundadmin.
   const { user, customerId } = await authorize('course', s(fd, 'id'), 'admin');
   if (s(fd, 'confirm') !== 'RADERA') return;
+  const audioPaths = await audioPathsFor('course', s(fd, 'id'));
   const [c] = await sql<{ customer_id: string; title: string }[]>`delete from course where id = ${s(fd, 'id')} returning customer_id, title`;
+  await removeAudio(audioPaths);
   await audit(user, customerId, 'utbildning_raderad', { course_id: s(fd, 'id'), title: c?.title });
   done();
   redirect(c ? `/admin/kunder/${c.customer_id}` : '/admin');
@@ -211,8 +214,13 @@ export async function duplicateCourse(fd: FormData) {
         insert into chapter (course_id, position, title) values (${c.id}, ${ch.position}, ${ch.title}) returning id`;
       const secs = await tx`select * from section where chapter_id = ${ch.id} order by position`;
       for (const se of secs) {
+        // Ljudfilen kopieras, så att kopian inte påverkas om originalets ljud byts eller tas bort.
+        const audio = se.audio as SectionAudio | null;
+        const copied = audio && isAudioPath(audio.path) ? await copyAudio(audio.path) : null;
+        const newAudio = audio && copied ? { ...audio, path: copied } : null;
         const [nse] = await tx<{ id: string }[]>`
-          insert into section (chapter_id, position, title) values (${nch.id}, ${se.position}, ${se.title}) returning id`;
+          insert into section (chapter_id, position, title, audio)
+          values (${nch.id}, ${se.position}, ${se.title}, ${newAudio ? tx.json(newAudio as never) : null}) returning id`;
         await tx`insert into block (section_id, position, type, content)
           select ${nse.id}, position, type, content from block where section_id = ${se.id}`;
       }
@@ -329,10 +337,92 @@ export async function deleteItem(fd: FormData) {
   await authorize(tbl as Kind, s(fd, 'id'), 'edit');
   const id = s(fd, 'id');
   const table = s(fd, 'table');
+  const audioPaths = table === 'chapter' || table === 'section' ? await audioPathsFor(table, id) : [];
   if (table === 'chapter') await sql`delete from chapter where id = ${id}`;
   if (table === 'section') await sql`delete from section where id = ${id}`;
   if (table === 'block') await sql`delete from block where id = ${id}`;
+  await removeAudio(audioPaths);
   done();
+}
+
+/* ---------- Speakerröst per avsnitt ---------- */
+
+// Ljudfilerna som hör till en utbildning, ett kapitel eller ett avsnitt (tas bort från Storage efter raderingen).
+async function audioPathsFor(level: 'course' | 'chapter' | 'section', id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return [];
+  const rows =
+    level === 'course'
+      ? await sql<{ path: string | null }[]>`select s.audio->>'path' as path from section s join chapter c on c.id = s.chapter_id where c.course_id = ${id}`
+      : level === 'chapter'
+        ? await sql<{ path: string | null }[]>`select audio->>'path' as path from section where chapter_id = ${id}`
+        : await sql<{ path: string | null }[]>`select audio->>'path' as path from section where id = ${id}`;
+  return rows.map((r) => r.path).filter((p): p is string => !!p);
+}
+
+type AudioResult = { ok: true } | { ok: false; error: string };
+const noAccess = (e: unknown) => ({ ok: false as const, error: e instanceof Error && e.message === 'Ingen behörighet' ? 'Ingen behörighet.' : 'Något gick fel.' });
+
+// Steg 1: kontrollerar filen och ger en tillfällig länk som webbläsaren laddar upp till.
+export async function prepareSectionAudio(
+  sectionId: string, filename: string, size: number,
+): Promise<{ ok: true; path: string; uploadUrl: string } | { ok: false; error: string }> {
+  try {
+    await authorize('section', String(sectionId), 'edit');
+  } catch (e) {
+    return noAccess(e);
+  }
+  const ext = extOf(String(filename));
+  if (!ext) return { ok: false, error: 'Bara MP3, M4A, AAC eller WAV är tillåtet.' };
+  if (!(Number(size) > 0) || Number(size) > AUDIO_MAX_BYTES) return { ok: false, error: 'Ljudfilen får vara högst 50 MB.' };
+  try {
+    return { ok: true, ...(await createUploadUrl(ext)) };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Kunde inte förbereda uppladdningen.' };
+  }
+}
+
+// Steg 2: efter uppladdningen kopplas filen till avsnittet. Ett tidigare ljud tas bort.
+export async function saveSectionAudio(
+  sectionId: string, path: string, filename: string, durationS: number | null,
+): Promise<AudioResult> {
+  let ctx;
+  try {
+    ctx = await authorize('section', String(sectionId), 'edit');
+  } catch (e) {
+    return noAccess(e);
+  }
+  if (!isAudioPath(path)) return { ok: false, error: 'Ogiltig fil.' };
+  const info = await audioInfo(path);
+  if (!info) return { ok: false, error: 'Filen hittades inte efter uppladdningen. Försök igen.' };
+  const ext = path.split('.').pop() as string;
+  const audio: SectionAudio = {
+    path,
+    filename: String(filename).slice(0, 200),
+    mime: AUDIO_EXT[ext],
+    size: info.size,
+    duration_s: durationS && Number.isFinite(durationS) && durationS > 0 ? Math.round(durationS) : null,
+  };
+  const [old] = await sql<{ path: string | null }[]>`select audio->>'path' as path from section where id = ${sectionId}`;
+  await sql`update section set audio = ${sql.json(audio as never)} where id = ${sectionId}`;
+  if (old?.path && old.path !== path) await removeAudio([old.path]);
+  await audit(ctx.user, ctx.customerId, 'avsnittsljud_sparat', { section_id: sectionId, filename: audio.filename });
+  done();
+  return { ok: true };
+}
+
+export async function removeSectionAudio(sectionId: string): Promise<AudioResult> {
+  let ctx;
+  try {
+    ctx = await authorize('section', String(sectionId), 'edit');
+  } catch (e) {
+    return noAccess(e);
+  }
+  const [old] = await sql<{ path: string | null }[]>`select audio->>'path' as path from section where id = ${sectionId}`;
+  await sql`update section set audio = null where id = ${sectionId}`;
+  await removeAudio([old?.path]);
+  await audit(ctx.user, ctx.customerId, 'avsnittsljud_borttaget', { section_id: sectionId });
+  done();
+  return { ok: true };
 }
 
 /* ---------- Block ---------- */

@@ -1,6 +1,6 @@
 import 'server-only';
 import { sql } from './db';
-import type { Block, Chapter, Course, Customer } from './types';
+import type { Block, Chapter, Course, Customer, SectionAudio } from './types';
 
 export async function getCourseById(id: string) {
   const [c] = await sql<Course[]>`select * from course where id = ${id}`;
@@ -21,8 +21,8 @@ export async function getCustomer(id: string) {
 export async function getStructure(courseId: string): Promise<Chapter[]> {
   const chapters = await sql<{ id: string; title: string; position: number }[]>`
     select id, title, position from chapter where course_id = ${courseId} order by position`;
-  const sections = await sql<{ id: string; chapter_id: string; title: string; position: number }[]>`
-    select s.id, s.chapter_id, s.title, s.position from section s
+  const sections = await sql<{ id: string; chapter_id: string; title: string; position: number; audio: SectionAudio | null }[]>`
+    select s.id, s.chapter_id, s.title, s.position, s.audio from section s
     join chapter c on c.id = s.chapter_id where c.course_id = ${courseId} order by s.position`;
   const blocks = await sql<(Block & { section_id: string })[]>`
     select b.id, b.section_id, b.position, b.type, b.content from block b
@@ -36,6 +36,7 @@ export async function getStructure(courseId: string): Promise<Chapter[]> {
         id: s.id,
         title: s.title,
         position: s.position,
+        audio: s.audio,
         blocks: blocks.filter((b) => b.section_id === s.id) as Block[],
       })),
   }));

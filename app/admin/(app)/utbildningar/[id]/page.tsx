@@ -5,6 +5,8 @@ import { getCourseById, getCustomer, getStructure } from '@/lib/course';
 import { sql } from '@/lib/db';
 import type { Block, CertBadge } from '@/lib/types';
 import { SlideUploader } from './SlideUploader';
+import { SectionAudio } from './SectionAudio';
+import { audioConfigured, audioUrl } from '@/lib/audio';
 import {
   addBlock, addChapter, addSection, deleteCourse, deleteItem, moveItem, moveSectionToChapter, renameItem, setCourseStatus, updateBlock,
   updateCourseSettings,
@@ -367,6 +369,14 @@ export default async function EditorPage({
                     )}
                   </div>
                 </div>
+                <SectionAudio
+                  key={`ljud-${current.id}`}
+                  sectionId={current.id}
+                  configured={audioConfigured()}
+                  current={current.audio && audioUrl(current.audio.path)
+                    ? { url: audioUrl(current.audio.path)!, filename: current.audio.filename, size: current.audio.size, duration_s: current.audio.duration_s }
+                    : null}
+                />
                 {current.blocks.map((b) => <BlockEditor key={b.id} block={b} />)}
                 <div className="card stack" style={{ borderStyle: 'dashed', gap: 10 }}>
                   <span className="small muted">Lägg till block</span>
