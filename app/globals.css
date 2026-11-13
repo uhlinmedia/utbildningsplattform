@@ -328,15 +328,16 @@ input[type=file] { max-width: 100%; }
 
 /* Minimerad speakerröst (nedre högra hörnet) */
 .learn-main:has(.audio-mini) { padding-bottom: 96px; }
-.audio-mini { position: fixed; right: 20px; bottom: 20px; z-index: 40; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-.audio-mini-dock { display: flex; align-items: stretch; }
-.audio-mini-btn { position: relative; z-index: 1; width: 56px; height: 56px; display: grid; place-items: center; border: 2px solid #fff; border-radius: 16px; background: var(--brand); color: #fff; cursor: pointer; box-shadow: 0 6px 18px rgba(27, 36, 48, .22); transition: transform .15s; }
+.audio-mini { --am-size: 56px; position: fixed; right: 20px; bottom: 20px; z-index: 40; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.audio-mini-dock { display: flex; align-items: center; }
+.audio-mini-btn { position: relative; z-index: 1; box-sizing: border-box; width: var(--am-size); height: var(--am-size); display: grid; place-items: center; border: 2px solid #fff; border-radius: 16px; background: var(--brand); color: #fff; cursor: pointer; box-shadow: 0 6px 18px rgba(27, 36, 48, .22); transition: transform .15s; }
 .audio-mini-btn:hover { transform: scale(1.04); }
 .audio-mini-btn:focus-visible, .audio-mini-tab button:focus-visible, .audio-mini-close:focus-visible { outline: 3px solid var(--brand-accent-light); outline-offset: 2px; }
-.audio-mini-tab { order: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; margin-left: -14px; padding: 4px 4px 4px 16px; border-radius: 0 16px 16px 0; background: var(--ink); box-shadow: 0 6px 18px rgba(27, 36, 48, .22);
+/* Fliken har exakt samma höjd som knappen */
+.audio-mini-tab { order: 1; box-sizing: border-box; height: var(--am-size); display: flex; flex-direction: column; justify-content: center; gap: 0; margin-left: -14px; padding: 3px 4px 3px 16px; border-radius: 0 16px 16px 0; background: var(--ink); box-shadow: 0 6px 18px rgba(27, 36, 48, .22);
   opacity: 0; transform: translateX(-12px); pointer-events: none; transition: opacity .15s, transform .15s; }
 .audio-mini-dock:hover .audio-mini-tab, .audio-mini-dock:focus-within .audio-mini-tab, .audio-mini.is-open .audio-mini-tab { opacity: 1; transform: none; pointer-events: auto; }
-.audio-mini-tab button { width: 26px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 6px; background: none; color: #fff; cursor: pointer; padding: 0; }
+.audio-mini-tab button { width: 26px; height: calc((var(--am-size) - 6px) / 2); display: grid; place-items: center; border: 0; border-radius: 6px; background: none; color: #fff; cursor: pointer; padding: 0; }
 .audio-mini-tab button:hover { background: rgba(255, 255, 255, .14); }
 .audio-mini-panel { width: min(360px, calc(100vw - 40px)); display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 8px 24px rgba(27, 36, 48, .16); }
 .audio-mini-panel[hidden] { display: none; }
@@ -349,9 +350,18 @@ input[type=file] { max-width: 100%; }
 @keyframes audio-hint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 /* Pekskärm (ingen hovring): fliken syns alltid */
 @media (hover: none) { .audio-mini-tab { opacity: 1; transform: none; pointer-events: auto; } }
-@media (max-width: 640px) { .audio-mini { right: 12px; bottom: 12px; } .audio-mini-btn { width: 50px; height: 50px; border-radius: 14px; } }
+@media (max-width: 640px) { .audio-mini { right: 12px; bottom: 12px; } .audio-mini { --am-size: 48px; } .audio-mini-btn { border-radius: 14px; } .audio-mini-tab { border-radius: 0 14px 14px 0; } }
 @media (prefers-reduced-motion: reduce) { .audio-mini .wave, .audio-mini-hint { animation: none; } .audio-mini-btn, .audio-mini-tab { transition: none; } }
 /* Ljudet väntar på elevens tryck (autoplay stoppad): pulserande ring runt knappen */
 .audio-mini.is-waiting .audio-mini-btn { animation: audio-ring 1.8s ease-out infinite; }
 @keyframes audio-ring { 0% { box-shadow: 0 6px 18px rgba(27, 36, 48, .22), 0 0 0 0 color-mix(in srgb, var(--brand) 55%, transparent); } 100% { box-shadow: 0 6px 18px rgba(27, 36, 48, .22), 0 0 0 16px color-mix(in srgb, var(--brand) 0%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .audio-mini.is-waiting .audio-mini-btn { animation: none; } }
+/* Mobil: knappen centrerad längst ned (mellan Föregående och Nästa). Fliken glider ut en stund efter tryck. */
+@media (max-width: 640px) {
+  .learn-main:has(.audio-mini) { padding-bottom: 130px; }
+  .audio-mini { right: auto; left: 50%; margin-left: calc(var(--am-size) / -2); bottom: calc(12px + env(safe-area-inset-bottom)); align-items: flex-start; }
+  .audio-mini-tab { opacity: 0; transform: translateX(-12px); pointer-events: none; }
+  .audio-mini.is-peek .audio-mini-tab, .audio-mini.is-open .audio-mini-tab, .audio-mini-dock:focus-within .audio-mini-tab { opacity: 1; transform: none; pointer-events: auto; }
+  .audio-mini-panel { position: fixed; left: 12px; right: 12px; width: auto; bottom: calc(var(--am-size) + 24px + env(safe-area-inset-bottom)); }
+  .audio-mini-hint { position: fixed; left: 50%; translate: -50% 0; white-space: nowrap; bottom: calc(var(--am-size) + 22px + env(safe-area-inset-bottom)); }
+}

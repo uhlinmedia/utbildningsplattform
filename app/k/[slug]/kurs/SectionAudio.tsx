@@ -58,6 +58,15 @@ export function SectionAudio({
   const [blocked, setBlocked] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [open, setOpen] = useState(false);
+  // Mobil: fliken (spela/pausa, kugghjul) visas en stund efter tryck på knappen.
+  const [peek, setPeek] = useState(false);
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  function showTab() {
+    setPeek(true);
+    clearTimeout(peekTimer.current);
+    peekTimer.current = setTimeout(() => setPeek(false), 3000);
+  }
+  useEffect(() => () => clearTimeout(peekTimer.current), []);
   const posKey = `briondo-ljud-${sectionId}`;
   const doneKey = `briondo-ljud-klar-${sectionId}`;
 
@@ -174,7 +183,7 @@ export function SectionAudio({
   // Minimerad spelare i nedre högra hörnet: stor knapp spelar/pausar, fliken bredvid har
   // spela/pausa och kugghjul som fäller ut hela spelaren (spola, hastighet, volym).
   return (
-    <section className={`audio-mini${playing ? ' is-playing' : ''}${open ? ' is-open' : ''}${blocked && !playing ? ' is-waiting' : ''}`} aria-label="Speakerröst">
+    <section className={`audio-mini${playing ? ' is-playing' : ''}${open ? ' is-open' : ''}${blocked && !playing ? ' is-waiting' : ''}${peek ? ' is-peek' : ''}`} aria-label="Speakerröst">
       <div className="audio-mini-panel" hidden={!open}>
         <div className="row between" style={{ gap: 8 }}>
           <span className="section-audio-title">
@@ -190,7 +199,7 @@ export function SectionAudio({
       )}
 
       <div className="audio-mini-dock">
-        <button type="button" className="audio-mini-btn" onClick={toggle} aria-label={label} title={label} aria-pressed={playing}>
+        <button type="button" className="audio-mini-btn" onClick={() => { toggle(); showTab(); }} aria-label={label} title={label} aria-pressed={playing}>
           <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" transform={playing ? undefined : 'translate(4 0)'} />
             {playing && (
@@ -202,7 +211,7 @@ export function SectionAudio({
           </svg>
         </button>
         <div className="audio-mini-tab">
-          <button type="button" onClick={toggle} aria-label={label} title={label}>
+          <button type="button" onClick={() => { toggle(); showTab(); }} aria-label={label} title={label}>
             {playing ? (
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.5" /><rect x="14" y="5" width="4" height="14" rx="1.5" /></svg>
             ) : (
