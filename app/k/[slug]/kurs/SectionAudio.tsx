@@ -96,8 +96,25 @@ export function SectionAudio({
     };
     // Safari m.fl. stoppar autoplay utan att alltid säga ifrån (play() kan bli hängande, eller så laddas
     // inte ljudet förrän eleven trycker). Spelar det inte efter en stund visas "Tryck för att lyssna".
+    // Safari på Mac kan dessutom låta spelaren stå i läget "spelar" utan att något hörs, så vi tittar på om
+    // tiden faktiskt går framåt i stället för att lita på a.paused.
     const wantsAutoplay = autoplay && store.get(doneKey) !== '1';
-    const watchdog = wantsAutoplay ? setTimeout(() => { if (a.paused) setBlocked(true); }, 1500) : undefined;
+    // "Spelar på riktigt" = tiden har gått framåt i små steg (en spolning till sparad position räknas inte).
+    let lastT = -1;
+    let progressed = false;
+    const tick = () => {
+      const d = a.currentTime - lastT;
+      if (lastT >= 0 && !a.paused && d > 0 && d < 1.5) progressed = true;
+      lastT = a.currentTime;
+    };
+    if (wantsAutoplay) a.addEventListener('timeupdate', tick);
+    const watchdog = wantsAutoplay ? setTimeout(() => {
+      a.removeEventListener('timeupdate', tick);
+      if (progressed) return;
+      if (!a.paused) a.pause(); // nollställ så att elevens tryck startar ljudet
+      setPlaying(false);
+      setBlocked(true);
+    }, 2000) : undefined;
     a.addEventListener('timeupdate', save);
     a.addEventListener('pause', save);
     a.addEventListener('ended', ended);
@@ -117,6 +134,7 @@ export function SectionAudio({
     }
     return () => {
       clearTimeout(watchdog);
+      a.removeEventListener('timeupdate', tick);
       a.removeEventListener('timeupdate', save);
       a.removeEventListener('pause', save);
       a.removeEventListener('ended', ended);
