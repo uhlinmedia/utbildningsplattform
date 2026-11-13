@@ -63,8 +63,8 @@ export function AudioUnlock() {
 // (bara i den här webbläsaren).
 // Med autoplay startar ljudet direkt, om eleven inte redan har lyssnat klart på avsnittet.
 export function SectionAudio({
-  sectionId, src, durationS, autoplay = false,
-}: { sectionId: string; src: string; durationS: number | null; autoplay?: boolean }) {
+  sectionId, src, durationS, autoplay = false, lightButton = false,
+}: { sectionId: string; src: string; durationS: number | null; autoplay?: boolean; lightButton?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const [blocked, setBlocked] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -194,7 +194,7 @@ export function SectionAudio({
   // Minimerad spelare i nedre högra hörnet: stor knapp spelar/pausar, fliken bredvid har
   // spela/pausa och kugghjul som fäller ut hela spelaren (spola, hastighet, volym).
   return (
-    <section className={`audio-mini${playing ? ' is-playing' : ''}${open ? ' is-open' : ''}${blocked && !playing ? ' is-waiting' : ''}${peek ? ' is-peek' : ''}`} aria-label="Speakerröst">
+    <section className={`audio-mini${playing ? ' is-playing' : ''}${open ? ' is-open' : ''}${blocked && !playing ? ' is-waiting' : ''}${peek ? ' is-peek' : ''}${lightButton ? ' is-light' : ''}`} aria-label="Speakerröst">
       <div className="audio-mini-panel" hidden={!open}>
         <div className="row between" style={{ gap: 8 }}>
           <span className="section-audio-title">

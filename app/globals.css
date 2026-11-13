@@ -367,3 +367,5 @@ input[type=file] { max-width: 100%; }
 }
 .slide-cue { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .slide-cue input { width: 84px; min-height: 32px; padding: 4px 8px; font-variant-numeric: tabular-nums; }
+/* Mörk kundfärg (smälter ihop med fliken): vit knapp med ikonen och kanten i kundfärgen */
+.audio-mini.is-light .audio-mini-btn { background: #fff; color: var(--brand); border-color: var(--brand); }

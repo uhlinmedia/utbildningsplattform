@@ -93,6 +93,20 @@ with sync_playwright() as p:
     step("mobil: knappen centrerad längst ned")
     m.screenshot(path=OUT + "/speakerljud-mobil.png")
 
+    # Mörk kundfärg: knappen blir vit med ikonen i kundfärgen (annars smälter den ihop med den mörka fliken)
+    cust_id = q(f"select customer_id from course where id = '{course_id}'")
+    orig_color = q(f"select coalesce(color, '') from customer where id = '{cust_id}'")
+    q(f"update customer set color = '#1b2430' where id = '{cust_id}'")
+    e.reload()
+    expect(e.locator(".audio-mini.is-light")).to_have_count(1)
+    assert e.evaluate("getComputedStyle(document.querySelector('.audio-mini-btn')).backgroundColor") == "rgb(255, 255, 255)"
+    q(f"update customer set color = '#0e7c74' where id = '{cust_id}'")
+    e.reload()
+    expect(e.locator(".audio-mini-btn")).to_be_visible()
+    expect(e.locator(".audio-mini.is-light")).to_have_count(0)
+    q(f"update customer set color = {('NULL' if not orig_color else repr(orig_color))} where id = '{cust_id}'")
+    step("mörk kundfärg ger vit ljudknapp, ljus kundfärg behålls")
+
     # Kopiera utbildningen → ljudfilen kopieras
     cust = q(f"select customer_id from course where id = '{course_id}'")
     a.goto(f"{BASE}/admin/kunder/{cust}")

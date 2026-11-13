@@ -12,6 +12,7 @@ import { VideoBlock } from './VideoBlock';
 import { SlidesBlock } from './SlidesBlock';
 import { AudioUnlock, SectionAudio } from './SectionAudio';
 import { audioUrl } from '@/lib/audio';
+import { isTooDark } from '@/lib/color';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,6 +130,7 @@ export default async function CoursePage({
                 src={audioUrl(current.audio.path)!}
                 durationS={current.audio.duration_s}
                 autoplay={course.audio_autoplay}
+                lightButton={isTooDark(customer?.color)}
               />
             )}
 
