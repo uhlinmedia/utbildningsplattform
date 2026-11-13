@@ -6,7 +6,11 @@ import { generateSectionAudio, prepareSectionAudio, removeSectionAudio, saveSect
 
 type Current = { url: string; filename: string; size: number; duration_s: number | null } | null;
 // AI-uppläsning (bara superadmin och när GEMINI_API_KEY finns): förifylld text, röst och stil.
-type Ai = { voices: { id: string; label: string }[]; voice: string; style: string; text: string; fromAi: boolean } | null;
+type Ai = {
+  voices: { id: string; label: string }[]; voice: string; style: string; text: string; fromAi: boolean;
+  blocked: string | null; // varför kundens användare inte kan skapa röst just nu (t.ex. kvoten slut)
+  quota: string | null;   // t.ex. "Kvar denna månad: 42 av 120 min" (inte för superadmin)
+} | null;
 
 function formatDuration(s: number | null | undefined) {
   if (!s) return '';
@@ -160,11 +164,13 @@ export function SectionAudio({ sectionId, current, configured, ai = null }: { se
                   </label>
                 </div>
                 <div className="row" style={{ gap: 8 }}>
-                  <button className="btn btn-primary btn-sm" type="button" onClick={onGenerate} disabled={!!busy || !aiText.trim()}>
+                  <button className="btn btn-primary btn-sm" type="button" onClick={onGenerate} disabled={!!busy || !aiText.trim() || !!ai.blocked}>
                     {current ? 'Skapa ny AI-röst' : 'Skapa AI-röst'}
                   </button>
                   <span className="hint small muted">Google Gemini TTS. Lyssna i spelaren ovan när den är klar och skapa om vid behov.</span>
                 </div>
+                {ai.quota && <span className="small ai-quota">{ai.quota}</span>}
+                {ai.blocked && <p className="error" style={{ margin: 0 }}>{ai.blocked}</p>}
               </div>
             </details>
           )}

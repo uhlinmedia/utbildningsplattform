@@ -9,7 +9,7 @@ import { AdminNav } from '../AdminNav';
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const [customer] = user.customer_id
-    ? await sql<{ name: string }[]>`select name from customer where id = ${user.customer_id}`
+    ? await sql<{ name: string; ai_voice: boolean }[]>`select name, ai_voice from customer where id = ${user.customer_id}`
     : [];
   const c = user.customer_id ? `/admin/kunder/${user.customer_id}` : null;
   return (
@@ -28,11 +28,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href={`${c}/personer`}>Personregister</Link>
             {user.role === 'kundadmin' && <Link href={`${c}/anvandare`}>Användare</Link>}
             {user.role === 'kundadmin' && <Link href={`${c}/logg`}>Ändringslogg</Link>}
+            {user.role === 'kundadmin' && customer?.ai_voice && <Link href={`${c}/ai`}>AI-uppläsning</Link>}
           </>
         ) : (
           <>
             <Link href="/admin">Kunder &amp; utbildningar</Link>
             <Link href="/admin/anvandare">Briondo-användare</Link>
+            <Link href="/admin/ai">AI-uppläsning</Link>
           </>
         )}
         <div className="nav-user">

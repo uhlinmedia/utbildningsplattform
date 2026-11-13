@@ -3,7 +3,7 @@ import { can, type User } from '@/lib/access';
 
 // Rubrik och flikar för en kund. Flikar visas efter behörighet.
 export function CustomerHeader({ user, customer, active }: {
-  user: User; customer: { id: string; name: string }; active: 'utbildningar' | 'personer' | 'anvandare' | 'logg' | 'profil';
+  user: User; customer: { id: string; name: string; ai_voice?: boolean }; active: 'utbildningar' | 'personer' | 'anvandare' | 'logg' | 'profil' | 'ai';
 }) {
   const base = `/admin/kunder/${customer.id}`;
   const tabs: { key: typeof active; href: string; label: string; show: boolean }[] = [
@@ -11,6 +11,7 @@ export function CustomerHeader({ user, customer, active }: {
     { key: 'personer', href: `${base}/personer`, label: 'Personregister', show: true },
     { key: 'anvandare', href: `${base}/anvandare`, label: 'Användare', show: can(user, customer.id, 'admin') },
     { key: 'logg', href: `${base}/logg`, label: 'Ändringslogg', show: can(user, customer.id, 'admin') },
+    { key: 'ai', href: `${base}/ai`, label: 'AI-uppläsning', show: can(user, customer.id, 'admin') && (user.role === 'superadmin' || !!customer.ai_voice) },
   ];
   return (
     <div className="stack" style={{ gap: 10 }}>

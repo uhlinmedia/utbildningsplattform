@@ -85,6 +85,8 @@ export type Customer = {
   cert_logo_size: 'S' | 'M' | 'L';
   cert_seal: boolean;
   cert_show_briondo: boolean;
+  ai_voice: boolean;               // AI-uppläsning aktiverad av superadmin
+  ai_minutes_month: number | null; // månadskvot i minuter tal, null = obegränsat
 };
 
 export type CertTemplate = 'klassisk' | 'modern' | 'minimal';

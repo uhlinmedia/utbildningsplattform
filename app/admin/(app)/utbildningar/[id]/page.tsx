@@ -9,6 +9,7 @@ import { SectionAudio } from './SectionAudio';
 import { SlideCue } from './SlideCue';
 import { audioConfigured, audioUrl } from '@/lib/audio';
 import { markdownToSpeech, TTS_DEFAULT_STYLE, TTS_VOICES, ttsConfigured } from '@/lib/tts';
+import { aiAccess, fmtMinutes } from '@/lib/ai-usage';
 import {
   addBlock, addChapter, addSection, deleteCourse, deleteItem, moveItem, moveSectionToChapter, renameItem, setCourseStatus, updateBlock,
   updateCourseSettings,
@@ -200,6 +201,9 @@ export default async function EditorPage({
   if (!can(user, course.customer_id, 'edit')) redirect(`/admin/utbildningar/${id}/statistik`);
   const canAdmin = can(user, course.customer_id, 'admin');
   const customer = await getCustomer(course.customer_id);
+  // AI-uppläsning: superadmin alltid, kundens användare när funktionen är aktiverad för kunden.
+  const aiOn = ttsConfigured() && audioConfigured() && (user.role === 'superadmin' || !!customer?.ai_voice);
+  const ai = aiOn ? await aiAccess(user, course.customer_id) : null;
   const badges = await sql<CertBadge[]>`
     select id, media_id, label, position from cert_badge where customer_id = ${course.customer_id} order by position, created_at`;
   const chapters = await getStructure(id);
@@ -407,7 +411,7 @@ export default async function EditorPage({
                   current={current.audio && audioUrl(current.audio.path)
                     ? { url: audioUrl(current.audio.path)!, filename: current.audio.filename, size: current.audio.size, duration_s: current.audio.duration_s }
                     : null}
-                  ai={user.role === 'superadmin' && ttsConfigured() && audioConfigured() ? {
+                  ai={ai ? {
                     voices: TTS_VOICES,
                     voice: current.audio?.tts?.voice ?? TTS_VOICES[0].id,
                     style: current.audio?.tts?.style ?? TTS_DEFAULT_STYLE,
@@ -416,6 +420,9 @@ export default async function EditorPage({
                       .filter(Boolean)
                       .join('\n\n'),
                     fromAi: !!current.audio?.tts,
+                    blocked: ai.reason,
+                    quota: user.role === 'superadmin' || ai.quotaMinutes === null ? null
+                      : `Kvar denna månad: ${fmtMinutes(ai.remainingSeconds ?? 0)} av ${ai.quotaMinutes} min`,
                   } : null}
                 />
                 {current.blocks.map((b) => <BlockEditor key={b.id} block={b} hasAudio={!!current.audio} />)}

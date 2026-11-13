@@ -12,6 +12,7 @@ import { parseYouTube } from '@/lib/youtube';
 import type { QuizOption, SectionAudio, Slide } from '@/lib/types';
 import { AUDIO_EXT, AUDIO_MAX_BYTES, audioInfo, copyAudio, createUploadUrl, extOf, isAudioPath, removeAudio, uploadAudio } from '@/lib/audio';
 import { synthesize, TTS_MAX_CHARS, TTS_MODEL, TTS_VOICES, TtsError, ttsConfigured } from '@/lib/tts';
+import { aiAccess, fitsQuota, fmtMinutes, recordUsage } from '@/lib/ai-usage';
 
 const s = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 const done = () => revalidatePath('/admin', 'layout');
@@ -59,6 +60,18 @@ export async function updateCustomer(fd: FormData) {
       ${logo ? sql`, logo_media_id = ${logo}` : sql``}
     where id = ${id}`;
   await audit(user, id, 'kundprofil_sparad');
+  done();
+}
+
+// AI-uppläsning per kund (bara superadmin): på/av och månadskvot i minuter (tomt = obegränsat).
+export async function updateCustomerAi(fd: FormData) {
+  const user = await authorizeRole('super');
+  const id = s(fd, 'id');
+  const on = fd.get('ai_voice') === 'on';
+  const raw = s(fd, 'ai_minutes_month');
+  const minutes = raw === '' ? null : Math.max(0, Math.min(100000, Math.round(Number(raw) || 0)));
+  await sql`update customer set ai_voice = ${on}, ai_minutes_month = ${minutes} where id = ${id}`;
+  await audit(user, id, 'ai_installning', { on, minutes });
   done();
 }
 
@@ -413,7 +426,8 @@ export async function saveSectionAudio(
 }
 
 // AI-uppläsning: skapar speakerrösten från text med Google Gemini TTS och kopplar den till avsnittet
-// (ett tidigare ljud tas bort). Bara superadmin, eftersom varje uppläsning kostar (lite) pengar.
+// (ett tidigare ljud tas bort). Superadmin alltid; kundens användare med redigeringsrätt när superadmin har
+// aktiverat AI-uppläsning för kunden, inom månadskvoten. Förbrukningen sparas i ai_usage.
 export async function generateSectionAudio(
   sectionId: string, text: string, voice: string, style: string,
 ): Promise<AudioResult> {
@@ -423,11 +437,16 @@ export async function generateSectionAudio(
   } catch (e) {
     return noAccess(e);
   }
-  if (ctx.user.role !== 'superadmin') return { ok: false, error: 'Bara Briondos administratör kan skapa AI-röster.' };
+  const isSuper = ctx.user.role === 'superadmin';
+  const access = await aiAccess(ctx.user, ctx.customerId);
+  if (!access.canGenerate) return { ok: false, error: access.reason ?? 'Ingen behörighet.' };
   if (!ttsConfigured()) return { ok: false, error: 'AI-uppläsning är inte inställd: GEMINI_API_KEY saknas.' };
   const t = String(text ?? '').trim();
   if (!t) return { ok: false, error: 'Skriv eller klistra in texten som ska läsas upp.' };
   if (t.length > TTS_MAX_CHARS) return { ok: false, error: `Texten får vara högst ${TTS_MAX_CHARS.toLocaleString('sv-SE')} tecken. Dela upp avsnittet.` };
+  if (!fitsQuota(access, t.length, isSuper)) {
+    return { ok: false, error: `Texten ryms inte i månadens kvot (kvar ca ${fmtMinutes(access.remainingSeconds ?? 0)} min). Korta texten eller kontakta Briondo.` };
+  }
   const v = TTS_VOICES.some((x) => x.id === voice) ? voice : TTS_VOICES[0].id;
   const st = String(style ?? '').trim().slice(0, 300);
   let path: string;
@@ -452,6 +471,7 @@ export async function generateSectionAudio(
   const [old] = await sql<{ path: string | null }[]>`select audio->>'path' as path from section where id = ${sectionId}`;
   await sql`update section set audio = ${sql.json(audio as never)} where id = ${sectionId}`;
   if (old?.path && old.path !== path) await removeAudio([old.path]);
+  await recordUsage({ customerId: ctx.customerId, sectionId, user: ctx.user, chars: t.length, seconds: durationS, voice: v, model: TTS_MODEL });
   await audit(ctx.user, ctx.customerId, 'avsnittsljud_ai_skapat', { section_id: sectionId, voice: v, chars: t.length });
   done();
   return { ok: true };

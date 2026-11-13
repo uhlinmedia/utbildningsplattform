@@ -40,6 +40,10 @@ const label: Record<string, string> = {
   person_lank_ny: 'Skapade personlig länk',
   person_lank_av: 'Stängde av personlig länk',
   person_inloggningslank: 'Skickade inloggningslänk',
+  avsnittsljud_sparat: 'Laddade upp speakerröst',
+  avsnittsljud_borttaget: 'Tog bort speakerröst',
+  avsnittsljud_ai_skapat: 'Skapade AI-röst',
+  ai_installning: 'Ändrade AI-uppläsning',
 };
 
 const fmt = (d: Date) => new Intl.DateTimeFormat('sv-SE', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Stockholm' }).format(d);

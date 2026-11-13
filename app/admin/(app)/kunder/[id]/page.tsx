@@ -4,7 +4,9 @@ import { can, requireCustomerPage } from '@/lib/access';
 import { CustomerHeader } from './CustomerHeader';
 import { sql } from '@/lib/db';
 import { getCustomer } from '@/lib/course';
-import { addCertBadge, createCourse, duplicateCourse, updateCertBadge, updateCustomer, updateCustomerCert } from '../../../actions';
+import { addCertBadge, createCourse, duplicateCourse, updateCertBadge, updateCustomer, updateCustomerAi, updateCustomerCert } from '../../../actions';
+import { aiAccess, fmtMinutes } from '@/lib/ai-usage';
+import { ttsConfigured } from '@/lib/tts';
 import type { CertBadge } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +27,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const canEdit = can(user, id, 'edit');
   const canAdmin = can(user, id, 'admin');
   const isSuper = user.role === 'superadmin';
+  const ai = canAdmin && (isSuper || customer.ai_voice) ? await aiAccess(user, id) : null;
   const courses = await sql<
     { id: string; title: string; status: string; access_mode: 'name' | 'name_email' | 'register'; certificate_enabled: boolean; completed: number; started: number }[]
   >`select c.id, c.title, c.status, c.access_mode, c.certificate_enabled,
@@ -189,6 +192,34 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
       </section>
+
+      {ai && (
+        <section className="card stack" style={{ maxWidth: 720 }} aria-labelledby="ai-rubrik">
+          <div className="row between">
+            <h2 id="ai-rubrik" style={{ margin: 0 }}>AI-uppläsning</h2>
+            <Link className="small" href={`/admin/kunder/${id}/ai`}>Förbrukning per månad →</Link>
+          </div>
+          <p className="small muted" style={{ margin: 0 }}>
+            Speakerröst skapas från avsnittets text med Google Gemini TTS, direkt i editorn.
+            {' '}Denna månad: <strong>{fmtMinutes(ai.usedSeconds)} min</strong>
+            {ai.quotaMinutes !== null ? <> av <strong>{ai.quotaMinutes} min</strong> (kvar {fmtMinutes(ai.remainingSeconds ?? 0)} min)</> : ' (ingen kvot)'}.
+          </p>
+          {isSuper ? (
+            <form action={updateCustomerAi} className="stack" style={{ gap: 10 }} data-namn="AI-uppläsning">
+              <input type="hidden" name="id" value={id} />
+              {!ttsConfigured() && <p className="error" style={{ margin: 0 }}>GEMINI_API_KEY saknas på servern – ingen kan skapa AI-röster just nu.</p>}
+              <label className="check"><input type="checkbox" name="ai_voice" defaultChecked={customer.ai_voice} />Aktivera AI-uppläsning för kundens användare</label>
+              <label className="field" style={{ maxWidth: 320 }}>Månadskvot (minuter tal)
+                <span className="hint">Tomt = obegränsat. Gäller kundens användare; du som superadmin kan alltid skapa röster. Ca 900 tecken per minut.</span>
+                <input type="number" name="ai_minutes_month" min={0} max={100000} step={1} defaultValue={customer.ai_minutes_month ?? ''} placeholder="Obegränsat" />
+              </label>
+              <div><button className="btn btn-primary btn-sm" type="submit">Spara AI-uppläsning</button></div>
+            </form>
+          ) : (
+            <p className="small" style={{ margin: 0 }}>Aktiverad av Briondo. {ai.reason ?? 'Utbildningsansvariga och administratörer kan skapa AI-röster i avsnittens Speakerröst-ruta.'}</p>
+          )}
+        </section>
+      )}
 
       <section className="card">
         <form action={updateCustomer} className="stack" style={{ maxWidth: 560 }} data-namn="Kundprofil">

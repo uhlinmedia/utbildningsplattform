@@ -371,3 +371,10 @@ input[type=file] { max-width: 100%; }
 .audio-mini.is-light .audio-mini-btn { background: #fff; color: var(--brand); border-color: var(--brand); }
 .ai-voice { border: 1px dashed var(--line-strong); border-radius: 10px; padding: 10px 12px; }
 .ai-voice > summary { cursor: pointer; font-weight: 600; color: var(--brand); }
+.ai-quota { color: var(--muted); }
+.ai-usage td, .ai-usage th { white-space: nowrap; }
+.ai-usage-sum td { font-weight: 600; border-top: 1px solid var(--line-strong); }
+.ai-customers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ai-customers li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.ok-text { color: var(--ok); font-weight: 600; }
+.scroll-x { overflow-x: auto; }
