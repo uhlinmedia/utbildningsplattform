@@ -90,10 +90,14 @@ export function SectionAudio({
       // Börja om från början om man lyssnat klart (eller nästan).
       if (pos > 2 && Number.isFinite(a.duration) && pos < a.duration - 3) a.currentTime = pos;
       a.playbackRate = rate;
-      if (autoplay && store.get(doneKey) !== '1') {
+      if (wantsAutoplay) {
         a.play().catch(() => setBlocked(true));
       }
     };
+    // Safari m.fl. stoppar autoplay utan att alltid säga ifrån (play() kan bli hängande, eller så laddas
+    // inte ljudet förrän eleven trycker). Spelar det inte efter en stund visas "Tryck för att lyssna".
+    const wantsAutoplay = autoplay && store.get(doneKey) !== '1';
+    const watchdog = wantsAutoplay ? setTimeout(() => { if (a.paused) setBlocked(true); }, 1500) : undefined;
     a.addEventListener('timeupdate', save);
     a.addEventListener('pause', save);
     a.addEventListener('ended', ended);
@@ -112,6 +116,7 @@ export function SectionAudio({
       a.addEventListener('loadedmetadata', start, { once: true });
     }
     return () => {
+      clearTimeout(watchdog);
       a.removeEventListener('timeupdate', save);
       a.removeEventListener('pause', save);
       a.removeEventListener('ended', ended);
@@ -151,7 +156,7 @@ export function SectionAudio({
   // Minimerad spelare i nedre högra hörnet: stor knapp spelar/pausar, fliken bredvid har
   // spela/pausa och kugghjul som fäller ut hela spelaren (spola, hastighet, volym).
   return (
-    <section className={`audio-mini${playing ? ' is-playing' : ''}${open ? ' is-open' : ''}`} aria-label="Speakerröst">
+    <section className={`audio-mini${playing ? ' is-playing' : ''}${open ? ' is-open' : ''}${blocked && !playing ? ' is-waiting' : ''}`} aria-label="Speakerröst">
       <div className="audio-mini-panel" hidden={!open}>
         <div className="row between" style={{ gap: 8 }}>
           <span className="section-audio-title">
@@ -162,7 +167,7 @@ export function SectionAudio({
         <div ref={host} />
       </div>
 
-      {blocked && !open && (
+      {blocked && !playing && !open && (
         <button type="button" className="audio-mini-hint" onClick={toggle}>Tryck för att lyssna</button>
       )}
 

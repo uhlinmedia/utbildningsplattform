@@ -351,3 +351,7 @@ input[type=file] { max-width: 100%; }
 @media (hover: none) { .audio-mini-tab { opacity: 1; transform: none; pointer-events: auto; } }
 @media (max-width: 640px) { .audio-mini { right: 12px; bottom: 12px; } .audio-mini-btn { width: 50px; height: 50px; border-radius: 14px; } }
 @media (prefers-reduced-motion: reduce) { .audio-mini .wave, .audio-mini-hint { animation: none; } .audio-mini-btn, .audio-mini-tab { transition: none; } }
+/* Ljudet väntar på elevens tryck (autoplay stoppad): pulserande ring runt knappen */
+.audio-mini.is-waiting .audio-mini-btn { animation: audio-ring 1.8s ease-out infinite; }
+@keyframes audio-ring { 0% { box-shadow: 0 6px 18px rgba(27, 36, 48, .22), 0 0 0 0 color-mix(in srgb, var(--brand) 55%, transparent); } 100% { box-shadow: 0 6px 18px rgba(27, 36, 48, .22), 0 0 0 16px color-mix(in srgb, var(--brand) 0%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .audio-mini.is-waiting .audio-mini-btn { animation: none; } }
