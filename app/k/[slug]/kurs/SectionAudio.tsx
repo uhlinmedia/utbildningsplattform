@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-const SPEEDS = [0.75, 1, 1.25, 1.5];
 // 25 ms tystnad. Spelas vid elevens första tryck så att iPhone/Safari "låser upp" spelaren.
 const SILENCE = 'data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YZABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
@@ -49,13 +48,13 @@ export function AudioUnlock() {
   return null;
 }
 
-// Speakerröst överst i avsnittet. Kommer ihåg var eleven var och vald hastighet (bara i den här webbläsaren).
+// Speakerröst överst i avsnittet. Kommer ihåg var eleven var och hastigheten eleven valt i spelarens meny
+// (bara i den här webbläsaren).
 // Med autoplay startar ljudet direkt, om eleven inte redan har lyssnat klart på avsnittet.
 export function SectionAudio({
   sectionId, src, durationS, autoplay = false,
 }: { sectionId: string; src: string; durationS: number | null; autoplay?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
-  const [speed, setSpeed] = useState(1);
   const [blocked, setBlocked] = useState(false);
   const posKey = `briondo-ljud-${sectionId}`;
   const doneKey = `briondo-ljud-klar-${sectionId}`;
@@ -64,8 +63,10 @@ export function SectionAudio({
     const a = player();
     host.current?.appendChild(a);
     const saved = Number(store.get('briondo-ljud-hastighet'));
-    const rate = SPEEDS.includes(saved) ? saved : 1;
-    setSpeed(rate);
+    const rate = saved >= 0.25 && saved <= 4 ? saved : 1;
+    // defaultPlaybackRate behålls när en ny fil laddas (playbackRate nollställs annars till 1).
+    a.defaultPlaybackRate = rate;
+    a.playbackRate = rate;
 
     let last = 0;
     const save = () => {
@@ -75,6 +76,11 @@ export function SectionAudio({
     };
     const ended = () => { store.set(posKey, '0'); store.set(doneKey, '1'); };
     const playing = () => { unlocked = true; setBlocked(false); };
+    const rateChanged = () => {
+      if (a.src === SILENCE || a.readyState < 1) return; // inte vid laddning av ny fil
+      a.defaultPlaybackRate = a.playbackRate;
+      store.set('briondo-ljud-hastighet', String(a.playbackRate));
+    };
     const start = () => {
       const pos = Number(store.get(posKey));
       // Börja om från början om man lyssnat klart (eller nästan).
@@ -88,6 +94,7 @@ export function SectionAudio({
     a.addEventListener('pause', save);
     a.addEventListener('ended', ended);
     a.addEventListener('playing', playing);
+    a.addEventListener('ratechange', rateChanged);
     if (currentSrc !== src) {
       currentSrc = src;
       a.src = src;
@@ -103,6 +110,7 @@ export function SectionAudio({
       a.removeEventListener('pause', save);
       a.removeEventListener('ended', ended);
       a.removeEventListener('playing', playing);
+      a.removeEventListener('ratechange', rateChanged);
       a.removeEventListener('loadedmetadata', start);
       save();
       a.pause();
@@ -111,12 +119,6 @@ export function SectionAudio({
       if (!unlocked) currentSrc = '';
     };
   }, [src, posKey, doneKey, autoplay]);
-
-  function pickSpeed(v: number) {
-    setSpeed(v);
-    player().playbackRate = v;
-    store.set('briondo-ljud-hastighet', String(v));
-  }
 
   function tapToPlay() {
     player().play().then(() => setBlocked(false)).catch(() => setBlocked(true));
@@ -133,19 +135,6 @@ export function SectionAudio({
           </svg>
           Lyssna på avsnittet{mins && <span className="muted" style={{ fontWeight: 400 }}> · {mins}</span>}
         </span>
-        <div className="row" style={{ gap: 4 }} role="group" aria-label="Uppspelningshastighet">
-          {SPEEDS.map((v) => (
-            <button
-              key={v}
-              type="button"
-              className={`btn btn-sm speed ${speed === v ? 'btn-dark' : ''}`}
-              aria-pressed={speed === v}
-              onClick={() => pickSpeed(v)}
-            >
-              {String(v).replace('.', ',')}×
-            </button>
-          ))}
-        </div>
       </div>
       {blocked && (
         <button type="button" className="btn btn-primary section-audio-tap" onClick={tapToPlay}>

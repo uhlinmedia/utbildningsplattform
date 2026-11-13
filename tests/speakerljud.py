@@ -73,12 +73,12 @@ with sync_playwright() as p:
     e.wait_for_function("document.querySelector('.section-audio audio').readyState >= 1", timeout=10000)
     dur = e.evaluate("document.querySelector('.section-audio audio').duration")
     assert 74 < dur < 76, dur
-    e.get_by_role("button", name="1,5×").click()
+    assert e.locator(".section-audio .speed").count() == 0  # hastigheten väljs i spelarens egen meny
+    e.evaluate("document.querySelector('.section-audio audio').playbackRate = 1.5")
     e.evaluate("(() => { const a = document.querySelector('.section-audio audio'); a.currentTime = 30; a.dispatchEvent(new Event('pause')); })()")
     e.reload()
     e.wait_for_function("document.querySelector('.section-audio audio').currentTime > 29", timeout=10000)
     assert e.evaluate("document.querySelector('.section-audio audio').playbackRate") == 1.5
-    expect(e.get_by_role("button", name="1,5×")).to_have_attribute("aria-pressed", "true")
     step("elevens spelare: längd, hastighet och position sparas")
     e.screenshot(path=OUT + "/speakerljud-elev.png")
     e.evaluate("(() => { const d = document.createElement('div'); d.style.height = '3000px'; document.querySelector('.learn-content').appendChild(d); window.scrollTo(0, 2000); })()")
