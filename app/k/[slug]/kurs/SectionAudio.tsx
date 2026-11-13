@@ -10,6 +10,11 @@ const store = {
   set(k: string, v: string) { try { localStorage.setItem(k, v); } catch { /* privat läge m.m. */ } },
 };
 
+const visit = {
+  get(k: string) { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set(k: string, v: string) { try { sessionStorage.setItem(k, v); } catch { /* privat lage */ } },
+};
+
 // En enda ljudspelare för hela besöket. Den flyttas in i varje avsnitt i stället för att skapas på nytt,
 // eftersom iPhone bara låter en spelare som eleven själv har startat en gång spela upp ljud automatiskt.
 let shared: HTMLAudioElement | null = null;
@@ -96,7 +101,7 @@ export function SectionAudio({
       last = a.currentTime;
       store.set(posKey, String(Math.floor(a.currentTime)));
     };
-    const ended = () => { store.set(posKey, '0'); store.set(doneKey, '1'); };
+    const ended = () => { store.set(posKey, '0'); visit.set(doneKey, '1'); };
     const playing = () => { unlocked = true; setBlocked(false); setPlaying(true); };
     const stopped = () => setPlaying(false);
     setPlaying(!a.paused && !a.ended);
@@ -118,7 +123,7 @@ export function SectionAudio({
     // inte ljudet förrän eleven trycker). Spelar det inte efter en stund visas "Tryck för att lyssna".
     // Safari på Mac kan dessutom låta spelaren stå i läget "spelar" utan att något hörs, så vi tittar på om
     // tiden faktiskt går framåt i stället för att lita på a.paused.
-    const wantsAutoplay = autoplay && store.get(doneKey) !== '1';
+    const wantsAutoplay = autoplay && visit.get(doneKey) !== '1';
     // "Spelar på riktigt" = tiden har gått framåt i små steg (en spolning till sparad position räknas inte).
     let lastT = -1;
     let progressed = false;
