@@ -10,7 +10,7 @@ import { completeSection, restartPreview } from '../../actions';
 import { QuizBlock } from './QuizBlock';
 import { VideoBlock } from './VideoBlock';
 import { SlidesBlock } from './SlidesBlock';
-import { SectionAudio } from './SectionAudio';
+import { AudioUnlock, SectionAudio } from './SectionAudio';
 import { audioUrl } from '@/lib/audio';
 
 export const dynamic = 'force-dynamic';
@@ -120,6 +120,7 @@ export default async function CoursePage({
           <article className="learn-content">
             <div className="small muted">{current.chapterTitle} · Avsnitt {current.label}</div>
             <h1>{current.title}</h1>
+            {course.audio_autoplay && <AudioUnlock />}
 
             {current.audio && audioUrl(current.audio.path) && (
               <SectionAudio
@@ -127,6 +128,7 @@ export default async function CoursePage({
                 sectionId={current.id}
                 src={audioUrl(current.audio.path)!}
                 durationS={current.audio.duration_s}
+                autoplay={course.audio_autoplay}
               />
             )}
 

@@ -48,6 +48,7 @@ export type Course = {
   pass_percent: number;
   max_attempts: number;
   show_answers: boolean;
+  audio_autoplay: boolean;
   certificate_enabled: boolean;
   cert_signer: string;
   cert_valid_months: number | null;

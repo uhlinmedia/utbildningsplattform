@@ -63,7 +63,9 @@ with sync_playwright() as p:
     if e.locator("input[name=name]").count():
         e.fill("input[name=name]", "Test Elev")
         if e.locator("input[name=email]").count(): e.fill("input[name=email]", "elev@exempel.se")
-        e.locator("button[type=submit]").first.click()
+        e.get_by_role("button", name="Starta utbildningen").click()
+        e.wait_for_url("**/kurs**")
+        expect(e.get_by_role("heading", level=1)).to_be_visible()
     if not e.url.endswith(f"s={sec_id}"):
         e.goto(f"{BASE}/k/{slug}/kurs?s={sec_id}")
     player = e.locator(".section-audio")

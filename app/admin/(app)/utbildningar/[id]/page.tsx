@@ -233,6 +233,12 @@ export default async function EditorPage({
               <label className="field">Öppen till och med<input type="date" name="closes_at" defaultValue={dateValue(course.closes_at)} /></label>
             </div>
             <label className="check"><input type="checkbox" name="show_answers" defaultChecked={course.show_answers} />Visa rätt svar och förklaring när försöken är slut</label>
+            <label className="check" style={{ alignItems: 'flex-start' }}>
+              <input type="checkbox" name="audio_autoplay" defaultChecked={course.audio_autoplay} />
+              <span>Starta speakerrösten automatiskt
+                <span className="hint" style={{ display: 'block' }}>När eleven öppnar ett avsnitt med speakerröst, om eleven inte redan lyssnat klart. Webbläsaren kan kräva att eleven först trycker en gång; då visas knappen Tryck för att lyssna.</span>
+              </span>
+            </label>
             <fieldset className="stack cert-fieldset">
               <legend className="sr-only">Certifikat</legend>
               <div className="row between">

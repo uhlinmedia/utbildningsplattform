@@ -6,6 +6,7 @@ import { courseIsOpen } from '@/lib/completion';
 import { personLogout, requestCourseLogin, startCourse } from '../actions';
 import { sessionPerson } from '@/lib/person';
 import { Wordmark } from '../../Wordmark';
+import { AudioUnlock } from './kurs/SectionAudio';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,7 @@ export default async function StartPage({
 
   return (
     <main className="center-page" style={{ ['--brand' as string]: customer?.color }}>
+      {course.audio_autoplay && <AudioUnlock />}
       <div className="start-card">
         <div className="start-hero">
           {customer?.logo_media_id && (

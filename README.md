@@ -44,6 +44,7 @@ python3 tests/kundgranskning.py    # förhandsvisningslänk för kund, körs eft
 python3 tests/kundkonton.py        # konton, roller, avskild data, personregister, elevinloggning (kräver MAIL_DIR=tests/out/mail på servern)
 python3 tests/bildspel.py          # YouTube, bildspel från PDF/bilder, bredare innehållsyta, körs efter e2e.py (behöver DATABASE_URL)
 python3 tests/speakerljud.py       # speakerröst per avsnitt, körs efter e2e.py (kräver node tests/fake-storage.mjs, se filen)
+python3 tests/speakerljud-autostart.py  # automatisk start av speakerrösten, samma förutsättningar
 ```
 
 ## Bildspel
@@ -53,6 +54,7 @@ Blocket *Bildspel (PDF/PPT)* visar flera bilder i samma yta med pilar, tangentbo
 Varje avsnitt kan ha en inspelad speakerröst (MP3, M4A, AAC eller WAV, högst 50 MB) som spelas överst i avsnittet och följer med när eleven scrollar (hastighet 0,75–1,5×, minns positionen i webbläsaren). Inget lyssningskrav. Filerna ligger i **Supabase Storage**, den publika bucketen `avsnittsljud` med slumpade filnamn, inte i databasen: Vercel stoppar svar över ca 4,5 MB och Safari spelar bara ljud från servrar som stöder delvisa hämtningar. Adminens webbläsare laddar upp direkt till Storage via en tillfällig länk (`lib/audio.ts`).
 - Kräver `SUPABASE_URL` och `SUPABASE_SERVICE_ROLE_KEY` (se `.env.example`). Utan dem fungerar allt annat och editorn visar en upplysning.
 - Migreringen `008_section_audio.sql` lägger till `section.audio` och skapar bucketen. Går det inte att skapa bucketen skapas den för hand under Storage i Supabase (namn `avsnittsljud`, Public).
+- **Starta speakerrösten automatiskt** (utbildningens inställningar, av som standard, migrering `009_audio_autoplay.sql`): ljudet startar när eleven öppnar ett avsnitt, om eleven inte redan lyssnat klart i den webbläsaren. Webbläsare spärrar ljud tills eleven har tryckt någonstans; då visas knappen *Tryck för att lyssna*. En enda ljudspelare används för hela besöket och låses upp av elevens första tryck, så att även iPhone kan starta följande avsnitt av sig själv.
 - Byts eller tas ljudet bort, eller raderas avsnittet, kapitlet eller utbildningen, tas filen bort i Storage. Kopieras en utbildning kopieras ljudfilerna.
 
 ## Driftsättning (Supabase + Vercel)

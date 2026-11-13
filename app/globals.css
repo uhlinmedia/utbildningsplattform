@@ -327,3 +327,4 @@ input[type=file] { max-width: 100%; }
 .section-audio-title { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--brand); }
 .section-audio-title .muted { color: var(--muted); }
 .section-audio .speed { min-width: 52px; padding: 0 8px; }
+.section-audio-tap { align-self: flex-start; }

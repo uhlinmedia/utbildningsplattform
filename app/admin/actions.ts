@@ -144,7 +144,8 @@ export async function updateCourseSettings(fd: FormData) {
   await sql`update course set
       title = ${s(fd, 'title')}, description = ${s(fd, 'description')},
       access_mode = ${access}, nav_mode = ${nav}, pass_percent = ${pass}, max_attempts = ${attempts},
-      show_answers = ${fd.get('show_answers') === 'on'}, certificate_enabled = ${fd.get('certificate_enabled') === 'on'},
+      show_answers = ${fd.get('show_answers') === 'on'}, audio_autoplay = ${fd.get('audio_autoplay') === 'on'},
+      certificate_enabled = ${fd.get('certificate_enabled') === 'on'},
       cert_signer = ${s(fd, 'cert_signer').slice(0, 80)}, cert_valid_months = ${valid},
       cert_signer_title = ${s(fd, 'cert_signer_title').slice(0, 80)},
       cert_signer2 = ${s(fd, 'cert_signer2').slice(0, 80)}, cert_signer2_title = ${s(fd, 'cert_signer2_title').slice(0, 80)},
@@ -201,12 +202,12 @@ export async function duplicateCourse(fd: FormData) {
     const [c] = await tx<{ id: string }[]>`
       insert into course (customer_id, title, slug, description, access_mode, nav_mode, pass_percent, max_attempts,
         show_answers, certificate_enabled, cert_signer, cert_valid_months, cert_title, cert_intro, cert_body, cert_note,
-        cert_signer_title, cert_signature_media_id, cert_signer2, cert_signer2_title, cert_signature2_media_id, cert_hidden_badges)
+        cert_signer_title, cert_signature_media_id, cert_signer2, cert_signer2_title, cert_signature2_media_id, cert_hidden_badges, audio_autoplay)
       values (${targetCustomer || src.customer_id}, ${title}, ${slugify(title)}, ${src.description}, ${src.access_mode},
         ${src.nav_mode}, ${src.pass_percent}, ${src.max_attempts}, ${src.show_answers}, ${src.certificate_enabled},
         ${src.cert_signer}, ${src.cert_valid_months}, ${src.cert_title}, ${src.cert_intro}, ${src.cert_body}, ${src.cert_note},
         ${src.cert_signer_title}, ${src.cert_signature_media_id}, ${src.cert_signer2}, ${src.cert_signer2_title},
-        ${src.cert_signature2_media_id}, ${src.cert_hidden_badges})
+        ${src.cert_signature2_media_id}, ${src.cert_hidden_badges}, ${src.audio_autoplay})
       returning id`;
     const chapters = await tx`select * from chapter where course_id = ${srcId} order by position`;
     for (const ch of chapters) {
