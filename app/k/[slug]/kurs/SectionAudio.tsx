@@ -74,6 +74,8 @@ export function SectionAudio({
   const [blocked, setBlocked] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [open, setOpen] = useState(false);
+  // Tillbaka till ett avsnitt som redan lyssnats klart i besöket: "Lyssna igen" visas en kort stund.
+  const [again, setAgain] = useState(false);
   // Mobil: fliken (spela/pausa, kugghjul) visas en stund efter tryck på knappen.
   const [peek, setPeek] = useState(false);
   const peekTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -102,7 +104,7 @@ export function SectionAudio({
       store.set(posKey, String(Math.floor(a.currentTime)));
     };
     const ended = () => { store.set(posKey, '0'); visit.set(doneKey, '1'); };
-    const playing = () => { unlocked = true; setBlocked(false); setPlaying(true); };
+    const playing = () => { unlocked = true; setBlocked(false); setAgain(false); setPlaying(true); };
     const stopped = () => setPlaying(false);
     setPlaying(!a.paused && !a.ended);
     const rateChanged = () => {
@@ -123,7 +125,10 @@ export function SectionAudio({
     // inte ljudet förrän eleven trycker). Spelar det inte efter en stund visas "Tryck för att lyssna".
     // Safari på Mac kan dessutom låta spelaren stå i läget "spelar" utan att något hörs, så vi tittar på om
     // tiden faktiskt går framåt i stället för att lita på a.paused.
-    const wantsAutoplay = autoplay && visit.get(doneKey) !== '1';
+    const heard = autoplay && visit.get(doneKey) === '1';
+    const wantsAutoplay = autoplay && !heard;
+    setAgain(heard);
+    const againTimer = heard ? setTimeout(() => setAgain(false), 4000) : undefined;
     // "Spelar på riktigt" = tiden har gått framåt i små steg (en spolning till sparad position räknas inte).
     let lastT = -1;
     let progressed = false;
@@ -159,6 +164,8 @@ export function SectionAudio({
     }
     return () => {
       clearTimeout(watchdog);
+      clearTimeout(againTimer);
+      setAgain(false);
       a.removeEventListener('timeupdate', tick);
       a.removeEventListener('timeupdate', save);
       a.removeEventListener('pause', save);
@@ -212,6 +219,9 @@ export function SectionAudio({
 
       {blocked && !playing && !open && (
         <button type="button" className="audio-mini-hint" onClick={toggle}>Tryck för att lyssna</button>
+      )}
+      {again && !blocked && !playing && !open && (
+        <button type="button" className="audio-mini-hint is-again" onClick={() => { player().currentTime = 0; toggle(); }}>Lyssna igen</button>
       )}
 
       <div className="audio-mini-dock">
