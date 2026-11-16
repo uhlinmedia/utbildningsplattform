@@ -47,6 +47,7 @@ python3 tests/speakerljud.py       # speakerröst per avsnitt, körs efter e2e.p
 python3 tests/speakerljud-autostart.py  # automatisk start av speakerrösten, samma förutsättningar
 python3 tests/bildspel-ljud.py     # bildspel som följer speakerrösten, samma förutsättningar
 python3 tests/ai-rost.py          # AI-uppläsning (kräver även node tests/fake-gemini.mjs, se filen)
+python3 tests/bildspel-byt.py      # byt enskild bild i bildspel (bild eller PDF-sida), körs efter bildspel.py
 ```
 
 ## Bildspel

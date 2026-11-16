@@ -13,30 +13,54 @@ type Status = { kind: 'idle' } | { kind: 'busy'; text: string; done: number; tot
 
 // Gör om en PDF till en bild per sida i webbläsaren (pdf.js). Inget skickas till någon annan tjänst,
 // och servern behöver inget extra för att hantera PDF.
-async function* pdfPages(file: File): AsyncGenerator<{ blob: Blob; page: number; total: number }> {
+async function openPdf(file: File) {
   const pdfjs = await import('pdfjs-dist');
   pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
   const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
-  const doc = await task.promise;
+  return { task, doc: await task.promise };
+}
+
+type PdfDoc = Awaited<ReturnType<typeof openPdf>>['doc'];
+
+async function renderPage(doc: PdfDoc, p: number): Promise<Blob> {
+  const page = await doc.getPage(p);
+  const base = page.getViewport({ scale: 1 });
+  const viewport = page.getViewport({ scale: Math.min(4, TARGET_WIDTH / base.width) });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(viewport.width);
+  canvas.height = Math.round(viewport.height);
+  await page.render({ canvas, viewport, background: '#ffffff' }).promise;
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.88));
+  page.cleanup();
+  if (!blob) throw new Error(`Sidan ${p} kunde inte göras om till bild.`);
+  return blob;
+}
+
+async function* pdfPages(file: File): AsyncGenerator<{ blob: Blob; page: number; total: number }> {
+  const { task, doc } = await openPdf(file);
   const total = Math.min(doc.numPages, MAX_PAGES);
   try {
-    for (let p = 1; p <= total; p++) {
-      const page = await doc.getPage(p);
-      const base = page.getViewport({ scale: 1 });
-      const viewport = page.getViewport({ scale: Math.min(4, TARGET_WIDTH / base.width) });
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(viewport.width);
-      canvas.height = Math.round(viewport.height);
-      await page.render({ canvas, viewport, background: '#ffffff' }).promise;
-      const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.88));
-      page.cleanup();
-      if (!blob) throw new Error(`Sidan ${p} kunde inte göras om till bild.`);
-      yield { blob, page: p, total };
-    }
+    for (let p = 1; p <= total; p++) yield { blob: await renderPage(doc, p), page: p, total };
   } finally {
     await task.destroy();
   }
 }
+
+// En sida ur en PDF som bild (för "Byt bild"). choose får antalet sidor och returnerar vilken sida som
+// ska användas, eller null för att avbryta.
+export async function pdfPageImage(file: File, choose: (total: number) => number | null): Promise<Blob | null> {
+  const { task, doc } = await openPdf(file);
+  try {
+    const p = doc.numPages === 1 ? 1 : choose(doc.numPages);
+    if (p === null) return null;
+    if (!Number.isInteger(p) || p < 1 || p > doc.numPages) throw new Error(`PDF:en har ${doc.numPages} sidor – ange en sida mellan 1 och ${doc.numPages}.`);
+    return await renderPage(doc, p);
+  } finally {
+    await task.destroy();
+  }
+}
+
+export const SLIDE_IMAGE_TYPES = IMAGE_TYPES;
 
 export function SlideUploader({ blockId, count }: { blockId: string; count: number }) {
   const router = useRouter();
@@ -120,6 +144,7 @@ export function SlideUploader({ blockId, count }: { blockId: string; count: numb
         <p className="small muted" style={{ margin: 0 }}>
           PDF: varje sida blir en bild (högst {MAX_PAGES} sidor). PowerPoint: spara först som PDF (Arkiv → Exportera → PDF)
           eller exportera bilderna som PNG/JPG och välj dem här. Nya bilder läggs sist.
+          {count > 0 && <> Vill du ersätta en enskild bild (t.ex. efter en ändring i presentationen) – använd <strong>Byt bild</strong> på raden; beskrivning och tidsmarkering behålls.</>}
         </p>
         <div aria-live="polite">
           {status.kind === 'busy' && (

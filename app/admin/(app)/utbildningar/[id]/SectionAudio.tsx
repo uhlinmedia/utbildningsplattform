@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { generateSectionAudio, prepareSectionAudio, removeSectionAudio, saveSectionAudio } from '../../../actions';
 
@@ -48,6 +48,46 @@ function upload(url: string, file: File, onProgress: (p: number) => void): Promi
   });
 }
 
+// Ungefärlig tid för att skapa en AI-röst: Google gör ca 3 000 tecken per anrop, tre anrop parallellt.
+// Används bara för förloppsindikatorn – servern ger inget löpande förlopp.
+function estimateSeconds(chars: number) {
+  const chunks = Math.max(1, Math.ceil(chars / 3000));
+  const rounds = Math.ceil(chunks / 3);
+  const perRound = (Math.min(chars, 3000) / 15) * 0.25; // ca 15 tecken per sekund tal, Google ca 4× snabbare än realtid
+  return Math.min(280, Math.max(10, Math.round(6 + rounds * perRound)));
+}
+
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+// Förloppsindikator medan AI-rösten skapas: stapel efter uppskattad tid, steg i klartext och förfluten tid.
+function AiProgress({ start, estimate }: { start: number; estimate: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, []);
+  const elapsed = Math.max(0, (now - start) / 1000);
+  const f = elapsed / estimate;
+  // Rakt upp till 90 % vid uppskattad tid, sedan allt långsammare mot 99 %.
+  const pct = f <= 1 ? 4 + f * 86 : 90 + 9 * (1 - Math.exp(-(f - 1) * 1.5));
+  const step = f < 0.08 ? 'Skickar texten till Google …'
+    : f < 0.85 ? 'Google läser in rösten …'
+    : f <= 1.15 ? 'Gör om till MP3 och sparar …'
+    : 'Tar lite längre tid än vanligt – vänta kvar, rösten skapas fortfarande …';
+  const left = Math.max(0, Math.round(estimate - elapsed));
+  return (
+    <div className="ai-progress" role="status" aria-live="polite">
+      <div className="row between" style={{ gap: 8 }}>
+        <strong className="small"><span className="ai-spinner" aria-hidden="true" />Skapar AI-röst</strong>
+        <span className="small muted" aria-hidden="true">{clock(elapsed)}{f <= 1 ? ` · ca ${clock(left)} kvar` : ''}</span>
+      </div>
+      <div className="ai-progress-bar" aria-hidden="true"><span style={{ width: `${pct.toFixed(1)}%` }} /></div>
+      <span className="small">{step}</span>
+      <span className="small muted">Stäng inte sidan och byt inte avsnitt förrän rösten är klar.</span>
+    </div>
+  );
+}
+
 export function SectionAudio({ sectionId, current, configured, ai = null }: { sectionId: string; current: Current; configured: boolean; ai?: Ai }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
@@ -56,21 +96,35 @@ export function SectionAudio({ sectionId, current, configured, ai = null }: { se
   const [aiText, setAiText] = useState(ai?.text ?? '');
   const [aiVoice, setAiVoice] = useState(ai?.voice ?? '');
   const [aiStyle, setAiStyle] = useState(ai?.style ?? '');
+  const [aiRun, setAiRun] = useState<{ start: number; estimate: number } | null>(null);
+  const [aiDone, setAiDone] = useState<string | null>(null);
+
+  // Varna om sidan stängs eller laddas om medan rösten skapas (då går arbetet förlorat).
+  useEffect(() => {
+    if (!aiRun) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = 'AI-rösten skapas fortfarande.'; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [aiRun]);
 
   async function onGenerate() {
     if (!ai) return;
     if (current && !confirm('Den nuvarande speakerrösten ersätts med en ny AI-röst. Fortsätta?')) return;
     setError(null);
-    const minutes = Math.max(1, Math.round(aiText.length / 900));
-    setBusy(`Skapar AI-röst … (ca ${minutes} min tal, kan ta upp till en minut)`);
+    setAiDone(null);
+    const start = Date.now();
+    setAiRun({ start, estimate: estimateSeconds(aiText.length) });
+    setBusy('Skapar AI-röst …');
     try {
       const res = await generateSectionAudio(sectionId, aiText, aiVoice, aiStyle);
       if (!res.ok) throw new Error(res.error);
+      setAiDone(`✓ AI-rösten är klar (tog ${clock((Date.now() - start) / 1000)}). Lyssna i spelaren ovan.`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Något gick fel.');
     } finally {
       setBusy(null);
+      setAiRun(null);
     }
   }
 
@@ -142,7 +196,7 @@ export function SectionAudio({ sectionId, current, configured, ai = null }: { se
             {current && (
               <button className="btn btn-sm btn-danger" type="button" disabled={!!busy} onClick={onRemove}>Ta bort</button>
             )}
-            {busy && <span className="small muted" role="status">{busy}</span>}
+            {busy && !aiRun && <span className="small muted" role="status">{busy}</span>}
           </div>
           {ai && (
             <details className="ai-voice" open={!current}>
@@ -169,6 +223,8 @@ export function SectionAudio({ sectionId, current, configured, ai = null }: { se
                   </button>
                   <span className="hint small muted">Google Gemini TTS. Lyssna i spelaren ovan när den är klar och skapa om vid behov.</span>
                 </div>
+                {aiRun && <AiProgress start={aiRun.start} estimate={aiRun.estimate} />}
+                {aiDone && !aiRun && <span className="small ai-done" role="status">{aiDone}</span>}
                 {ai.quota && <span className="small ai-quota">{ai.quota}</span>}
                 {ai.blocked && <p className="error" style={{ margin: 0 }}>{ai.blocked}</p>}
               </div>

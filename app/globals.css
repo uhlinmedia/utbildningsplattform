@@ -380,3 +380,15 @@ input[type=file] { max-width: 100%; }
 .ai-customers li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .ok-text { color: var(--ok); font-weight: 600; }
 .scroll-x { overflow-x: auto; }
+.ai-progress { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--brand) 7%, #fff); border: 1px solid color-mix(in srgb, var(--brand) 30%, #fff); }
+.ai-progress-bar { position: relative; height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--brand) 14%, #fff); overflow: hidden; }
+.ai-progress-bar > span { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--brand); transition: width .25s linear; overflow: hidden; }
+.ai-progress-bar > span::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); transform: translateX(-100%); animation: ai-shimmer 1.4s ease-in-out infinite; }
+@keyframes ai-shimmer { to { transform: translateX(100%); } }
+.ai-spinner { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px; border: 2px solid color-mix(in srgb, var(--brand) 25%, #fff); border-top-color: var(--brand); border-radius: 50%; animation: ai-spin .8s linear infinite; }
+@keyframes ai-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ai-progress-bar > span::after, .ai-spinner { animation: none; } }
+.ai-done { color: var(--ok); font-weight: 600; }
+.slide-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 280px; }
+.slide-replace-status { flex-basis: 100%; text-align: right; }
+@media (max-width: 640px) { .slide-actions { max-width: none; justify-content: flex-start; } .slide-replace-status { text-align: left; } }

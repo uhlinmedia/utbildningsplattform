@@ -627,6 +627,34 @@ export async function addSlide(fd: FormData): Promise<{ ok: true } | { ok: false
   }
 }
 
+// Byter bilden på en plats i ett bildspel. Bildtext och tidsmarkering ("Visa vid") behålls.
+// media_id skickas med som kontroll, så att rätt bild byts även om ordningen ändrats i en annan flik.
+export async function replaceSlide(fd: FormData): Promise<{ ok: true } | { ok: false; error: string }> {
+  await authorize('block', s(fd, 'block_id'), 'edit');
+  const id = s(fd, 'block_id');
+  const index = Number(s(fd, 'index'));
+  const oldMedia = s(fd, 'media_id');
+  try {
+    const [b] = await sql<{ content: { slides?: Slide[] } }[]>`select content from block where id = ${id} and type = 'slides'`;
+    const slides = b?.content.slides ?? [];
+    if (!b || !Number.isInteger(index) || slides[index]?.media_id !== oldMedia) {
+      return { ok: false, error: 'Bildspelet har ändrats sedan sidan laddades. Ladda om sidan och försök igen.' };
+    }
+    const media = await saveImage(fd.get('image'));
+    if (!media) return { ok: false, error: 'Ingen bild.' };
+    const [r] = await sql<{ id: string }[]>`
+      update block set content = jsonb_set(content, ('{slides,' || ${index}::int || ',media_id}')::text[], to_jsonb(${media}::text))
+      where id = ${id} and type = 'slides' and content->'slides'->(${index}::int)->>'media_id' = ${oldMedia} returning id`;
+    if (!r) {
+      await sql`delete from media where id = ${media}`;
+      return { ok: false, error: 'Bildspelet har ändrats sedan sidan laddades. Ladda om sidan och försök igen.' };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Bytet misslyckades.' };
+  }
+}
+
 export async function refreshAdmin() {
   await authorizeRole('read');
   done();

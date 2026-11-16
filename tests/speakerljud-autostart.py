@@ -93,7 +93,7 @@ with sync_playwright() as p:
     step("nästa avsnitt startar automatiskt")
 
     # Avsnitt 1 markerat som lyssnat klart → startar inte igen
-    e.evaluate(f"localStorage.setItem('briondo-ljud-klar-{secs[0]}', '1')")
+    e.evaluate(f"sessionStorage.setItem('briondo-ljud-klar-{secs[0]}', '1')")
     e.locator(f".nav-desktop a[href*='s={secs[0]}']").click()
     e.wait_for_url(f"**s={secs[0]}")
     e.wait_for_function("document.querySelector('.audio-mini audio')?.readyState >= 1", timeout=10000)

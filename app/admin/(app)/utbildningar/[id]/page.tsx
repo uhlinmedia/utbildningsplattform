@@ -7,6 +7,7 @@ import type { Block, CertBadge } from '@/lib/types';
 import { SlideUploader } from './SlideUploader';
 import { SectionAudio } from './SectionAudio';
 import { SlideCue } from './SlideCue';
+import { SlideReplace } from './SlideReplace';
 import { audioConfigured, audioUrl } from '@/lib/audio';
 import { markdownToSpeech, TTS_DEFAULT_STYLE, TTS_VOICES, ttsConfigured } from '@/lib/tts';
 import { aiAccess, fmtMinutes } from '@/lib/ai-usage';
@@ -127,7 +128,8 @@ function BlockEditor({ block, hasAudio }: { block: Block; hasAudio: boolean }) {
                       <input type="text" name={`alt_${i}`} defaultValue={sl.alt ?? ''} aria-label={`Beskrivning av bild ${i + 1} för skärmläsare`} placeholder="Beskrivning för skärmläsare (valfri)" />
                       {hasAudio && <SlideCue index={i} at={sl.at} />}
                     </div>
-                    <div className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
+                    <div className="row slide-actions" style={{ gap: 4 }}>
+                      <SlideReplace blockId={block.id} index={i} mediaId={sl.media_id} />
                       <button className="btn btn-sm" type="submit" name="op" value={`up:${i}`} disabled={i === 0} aria-label={`Flytta bild ${i + 1} uppåt`}>↑</button>
                       <button className="btn btn-sm" type="submit" name="op" value={`down:${i}`} disabled={i === all.length - 1} aria-label={`Flytta bild ${i + 1} nedåt`}>↓</button>
                       <button className="btn btn-sm btn-danger" type="submit" name="op" value={`remove:${i}`} aria-label={`Ta bort bild ${i + 1}`}>Ta bort</button>

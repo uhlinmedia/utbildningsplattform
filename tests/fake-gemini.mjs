@@ -2,6 +2,7 @@
 // 2 sekunder per anrop. Starta med `node tests/fake-gemini.mjs` och kör servern med
 // GEMINI_API_BASE=http://localhost:54322 GEMINI_API_KEY=test-nyckel.
 // Text som innehåller FEL429 ger svaret 429 (slut på kvot), FEL401 ger 401 (fel nyckel).
+// Text som innehåller LANGSAM svarar efter 5 s (för att testa förloppsindikatorn).
 import http from 'node:http';
 const KEY = 'test-nyckel';
 const log = [];
@@ -28,6 +29,7 @@ http.createServer(async (req, res) => {
     style: content.annotations?.[0]?.style, chars: (content.text ?? '').length, format: body.response_format });
   if (req.headers['x-goog-api-key'] !== KEY || (content.text ?? '').includes('FEL401')) return send(401, { error: { message: 'API key not valid' } });
   if ((content.text ?? '').includes('FEL429')) return send(429, { error: { message: 'Resource exhausted' } });
+  if ((content.text ?? '').includes('LANGSAM')) await new Promise((r) => setTimeout(r, 5000));
   send(200, {
     id: 'interaction-test',
     steps: [{ type: 'model_output', content: [{ type: 'audio', mime_type: 'audio/wav', data: wav(2, 330).toString('base64') }] }],
