@@ -126,7 +126,7 @@ export function SlideSortable({ order, label, children }: { order: string; label
     const target = e.target as HTMLElement;
     const li = target.closest<HTMLLIElement>('li');
     if (!li || li.parentElement !== list.current) return;
-    const onHandle = !!target.closest('.slide-handle, img');
+    const onHandle = !!target.closest('.slide-handle, img, .slide-missing-img');
     // Pekskärm: bara greppet och bilden, så att man fortfarande kan scrolla över raden.
     if (!onHandle && (e.pointerType !== 'mouse' || target.closest(INTERACTIVE))) return;
     const items = Array.from(list.current!.querySelectorAll<HTMLLIElement>(':scope > li'));

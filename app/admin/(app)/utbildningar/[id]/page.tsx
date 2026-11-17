@@ -5,6 +5,7 @@ import { getCourseById, getCustomer, getStructure } from '@/lib/course';
 import { sql } from '@/lib/db';
 import type { Block, CertBadge, ImageLayout, ImageSizeChoice } from '@/lib/types';
 import { imageSizes, isTall, type ImageSize } from '@/lib/image-size';
+import { missingMedia } from '@/lib/media-check';
 import { SlideUploader } from './SlideUploader';
 import { SectionAudio } from './SectionAudio';
 import { SlideCue } from './SlideCue';
@@ -78,7 +79,8 @@ function autoHint(size: ImageSize | null) {
   return `Bilden är ${kind} (${size.width}×${size.height} px) och visas ${isTall(size) ? 'bredvid texten' : 'ovanför texten'} med Automatiskt.`;
 }
 
-function BlockEditor({ block, hasAudio, imgSize = null }: { block: Block; hasAudio: boolean; imgSize?: ImageSize | null }) {
+function BlockEditor({ block, hasAudio, imgSize = null, missing }: { block: Block; hasAudio: boolean; imgSize?: ImageSize | null; missing: Set<string> }) {
+  const missingSlides = block.type === 'slides' ? (block.content.slides ?? []).filter((x) => missing.has(x.media_id)).length : 0;
   return (
     <div className="block-card">
       <div className="block-head">
@@ -99,7 +101,9 @@ function BlockEditor({ block, hasAudio, imgSize = null }: { block: Block; hasAud
         )}
         {block.type === 'image' && (
           <>
-            {block.content.media_id && (
+            {block.content.media_id && missing.has(block.content.media_id) ? (
+              <p className="media-missing-note" role="alert">Bilden saknas. Välj bilden igen nedan och spara blocket.</p>
+            ) : block.content.media_id && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={`/media/${block.content.media_id}`} alt="" style={{ maxHeight: 200, borderRadius: 8, alignSelf: 'flex-start' }} />
             )}
@@ -150,18 +154,26 @@ function BlockEditor({ block, hasAudio, imgSize = null }: { block: Block; hasAud
           <>
             {/* Enter i ett textfält ska spara blocket, inte trycka på första flytta-knappen. */}
             <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true">Spara block</button>
+            {missingSlides > 0 && (
+              <p className="media-missing-note" role="alert">
+                {missingSlides === 1 ? '1 bild saknas' : `${missingSlides} bilder saknas`} i bildspelet (markerade nedan). Använd <strong>Byt bild</strong> på
+                de raderna och ladda upp bilden eller PDF:en igen – beskrivning och tidsmarkering behålls.
+              </p>
+            )}
             {(block.content.slides ?? []).length === 0 ? (
               <p className="small muted" style={{ margin: 0 }}>Inga bilder än. Lägg till en PDF eller bilder nedan.</p>
             ) : (
               <SlideSortable order={(block.content.slides ?? []).map((x) => x.media_id).join(',')} label="Bilder i bildspelet – dra för att ändra ordning">
                 {(block.content.slides ?? []).map((sl, i, all) => (
-                  <li key={sl.media_id}>
+                  <li key={sl.media_id} className={missing.has(sl.media_id) ? 'slide-missing' : undefined}>
                     <span className="slide-handle" title="Dra för att flytta bilden">
                       <svg width="12" height="18" viewBox="0 0 12 18" aria-hidden="true">{[3, 9].flatMap((x) => [3, 9, 15].map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.6" fill="currentColor" />))}</svg>
                       <span className="num">{i + 1}</span>
                     </span>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/media/${sl.media_id}`} alt="" loading="lazy" />
+                    {missing.has(sl.media_id)
+                      ? <span className="slide-missing-img" title="Bilden finns inte längre. Använd Byt bild.">Bilden saknas</span>
+                      : <img src={`/media/${sl.media_id}`} alt="" loading="lazy" />}
                     <div className="stack" style={{ gap: 6, minWidth: 0 }}>
                       <input type="text" name={`alt_${i}`} defaultValue={sl.alt ?? ''} aria-label={`Beskrivning av bild ${i + 1} för skärmläsare`} placeholder="Beskrivning för skärmläsare (valfri)" />
                       {hasAudio && <SlideCue index={i} at={sl.at} />}
@@ -252,6 +264,8 @@ export default async function EditorPage({
   const chapters = await getStructure(id);
   const allSections = chapters.flatMap((c) => c.sections.map((x) => ({ ...x, chapter: c })));
   const current = allSections.find((x) => x.id === s) ?? allSections[0];
+  const missing = await missingMedia((current?.blocks ?? []).flatMap((b) =>
+    b.type === 'image' ? (b.content.media_id ? [b.content.media_id] : []) : b.type === 'slides' ? (b.content.slides ?? []).map((x) => x.media_id) : []));
   const imgSizes = await imageSizes((current?.blocks ?? []).flatMap((b) => (b.type === 'image' && b.content.media_id ? [b.content.media_id] : [])));
   const settingsTab = flik === 'installningar';
 
@@ -483,7 +497,7 @@ export default async function EditorPage({
                       : `Kvar denna månad: ${fmtMinutes(ai.remainingSeconds ?? 0)} av ${ai.quotaMinutes} min`,
                   } : null}
                 />
-                {current.blocks.map((b) => <BlockEditor key={b.id} block={b} hasAudio={!!current.audio} imgSize={b.type === 'image' && b.content.media_id ? imgSizes.get(b.content.media_id) ?? null : null} />)}
+                {current.blocks.map((b) => <BlockEditor key={b.id} block={b} missing={missing} hasAudio={!!current.audio} imgSize={b.type === 'image' && b.content.media_id ? imgSizes.get(b.content.media_id) ?? null : null} />)}
                 <div className="card stack" style={{ borderStyle: 'dashed', gap: 10 }}>
                   <span className="small muted">Lägg till block</span>
                   <div className="row" style={{ gap: 8 }}>

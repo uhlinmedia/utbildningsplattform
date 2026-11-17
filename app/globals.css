@@ -334,6 +334,11 @@ body.slide-sorting, body.slide-sorting * { cursor: grabbing !important; user-sel
 .slide-list .num { font-weight: 600; color: var(--muted); text-align: center; }
 .slide-list img { width: 120px; height: 68px; object-fit: contain; background: #f1f3f5; border-radius: 6px; }
 @media (max-width: 640px) { .slide-list li { grid-template-columns: 32px 80px 1fr; } .slide-list li > .row { grid-column: 1 / -1; } .slide-list img { width: 80px; height: 45px; } }
+.media-missing-note { margin: 0; padding: 10px 12px; border-radius: 8px; background: #fdecea; color: #8a1c13; border: 1px solid #f5c2bc; font-size: 14px; }
+.slide-list li.slide-missing { border-color: #e5786d; background: #fff7f6; }
+.slide-missing-img { display: flex; align-items: center; justify-content: center; width: 120px; height: 68px; border-radius: 6px; border: 1px dashed #e5786d; color: #8a1c13; font-size: 12px; font-weight: 600; text-align: center; cursor: grab; touch-action: none; user-select: none; }
+@media (max-width: 640px) { .slide-missing-img { width: 80px; height: 45px; font-size: 11px; } }
+.media-missing-card { border-color: #f5c2bc; background: #fff7f6; margin-bottom: 18px; }
 .slide-upload { padding: 12px; border: 1px dashed var(--line-strong); border-radius: 10px; background: #fafbfc; }
 
 /* ---------- Konton ---------- */

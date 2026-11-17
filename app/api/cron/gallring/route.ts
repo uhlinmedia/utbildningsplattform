@@ -22,10 +22,14 @@ export async function GET(req: Request) {
     return ids.length;
   });
   // Bilder som inte längre används (block, kundlogga, certifikatmärken, underskrifter) tas också bort.
+  // Block letas igenom på alla nivåer (media_id var som helst i innehållet), så att även bilderna i ett
+  // bildspel (content.slides[].media_id) räknas som använda. Tidigare kontrollerades bara content.media_id,
+  // och då raderades bildspelens bilder natten efter att de laddats upp (rättat i B55).
   await sql`delete from media m where created_at < now() - interval '1 day'
     and not exists (select 1 from customer c where c.logo_media_id = m.id)
     and not exists (select 1 from cert_badge cb where cb.media_id = m.id)
     and not exists (select 1 from course co where m.id in (co.cert_signature_media_id, co.cert_signature2_media_id))
-    and not exists (select 1 from block b where b.content->>'media_id' = m.id::text)`;
+    and not exists (select 1 from block b
+      where jsonb_path_exists(b.content, '$.** ? (@.media_id == $id)', jsonb_build_object('id', m.id::text)))`;
   return Response.json({ gallrade_elever: result });
 }
