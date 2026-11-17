@@ -77,7 +77,7 @@ export async function UsersPanel({ me, customerId, q }: {
                       {customerId && !self ? (
                         <form action={changeRole} className="row" style={{ gap: 6, flexWrap: 'nowrap' }} data-namn={`Roll för ${u.email}`}>
                           <input type="hidden" name="user_id" value={u.id} />
-                          <select name="role" defaultValue={u.role} aria-label={`Roll för ${u.email}`} style={{ minHeight: 34, padding: '4px 8px' }}>
+                          <select key={u.role} name="role" defaultValue={u.role} aria-label={`Roll för ${u.email}`} style={{ minHeight: 34, padding: '4px 8px' }}>
                             {roles.map((r) => <option key={r} value={r}>{roleLabel[r]}</option>)}
                           </select>
                           <button className="btn btn-sm" type="submit">Spara</button>

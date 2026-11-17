@@ -124,7 +124,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
                   <input type="color" name="cert_accent" defaultValue={customer.cert_accent} style={{ width: 64, height: 44, padding: 2 }} />
                 </label>
                 <label className="field">Loggans storlek
-                  <select name="cert_logo_size" defaultValue={customer.cert_logo_size} style={{ width: 160 }}>
+                  <select key={customer.cert_logo_size} name="cert_logo_size" defaultValue={customer.cert_logo_size} style={{ width: 160 }}>
                     <option value="S">Liten</option>
                     <option value="M">Mellan</option>
                     <option value="L">Stor</option>
@@ -244,7 +244,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
           <label className="field">Gallringstid för elevdata
             <span className="hint">Namn, e-post och svar raderas automatiskt efter denna tid. Certifikat-ID och datum behålls för verifiering.</span>
             {isSuper ? (
-              <select name="retention_months" defaultValue={customer.retention_months}>
+              <select key={customer.retention_months} name="retention_months" defaultValue={customer.retention_months}>
                 <option value={12}>12 månader</option>
                 <option value={24}>24 månader</option>
                 <option value={36}>36 månader</option>

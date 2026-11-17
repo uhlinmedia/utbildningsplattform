@@ -107,13 +107,15 @@ function BlockEditor({ block, hasAudio, imgSize = null }: { block: Block; hasAud
             <label className="field">Alt-text (beskrivning för skärmläsare)<input type="text" name="alt" defaultValue={block.content.alt ?? ''} /></label>
             <label className="field">Bildtext (valfri)<input type="text" name="caption" defaultValue={block.content.caption ?? ''} /></label>
             <div className="row img-options" style={{ alignItems: 'flex-start' }}>
+              {/* key = sparat värde: React återställer formuläret efter sparning, och en <select> läser bara defaultValue
+                  när den skapas. Med key byggs den om och visar det sparade valet (gäller alla <select> i admin). */}
               <label className="field">Placering
-                <select name="layout" defaultValue={block.content.layout ?? 'auto'}>
+                <select key={block.content.layout ?? 'auto'} name="layout" defaultValue={block.content.layout ?? 'auto'}>
                   {(Object.keys(LAYOUT_LABEL) as ImageLayout[]).map((k) => <option key={k} value={k}>{LAYOUT_LABEL[k]}</option>)}
                 </select>
               </label>
               <label className="field">Storlek
-                <select name="size" defaultValue={block.content.size ?? 'auto'}>
+                <select key={block.content.size ?? 'auto'} name="size" defaultValue={block.content.size ?? 'auto'}>
                   {(Object.keys(SIZE_LABEL) as ImageSizeChoice[]).map((k) => <option key={k} value={k}>{SIZE_LABEL[k]}</option>)}
                 </select>
               </label>
@@ -185,7 +187,7 @@ function BlockEditor({ block, hasAudio, imgSize = null }: { block: Block; hasAud
           <>
             <label className="field">Fråga<input type="text" name="question" defaultValue={block.content.question} /></label>
             <label className="field">Typ
-              <select name="kind" defaultValue={block.content.kind} style={{ maxWidth: 280 }}>
+              <select key={block.content.kind} name="kind" defaultValue={block.content.kind} style={{ maxWidth: 280 }}>
                 <option value="single">Ett rätt svar (även sant/falskt)</option>
                 <option value="multi">Flera rätta svar</option>
               </select>
@@ -277,14 +279,14 @@ export default async function EditorPage({
             <label className="field">Utbildningens namn<input type="text" name="title" defaultValue={course.title} required /></label>
             <label className="field">Introduktionstext på startsidan<textarea name="description" defaultValue={course.description} rows={3} /></label>
             <label className="field">Åtkomst för elev
-              <select name="access_mode" defaultValue={course.access_mode}>
+              <select key={course.access_mode} name="access_mode" defaultValue={course.access_mode}>
                 <option value="name">Öppen länk + namn</option>
                 <option value="name_email">Länk + namn + e-post</option>
                 <option value="register">Bara personer i personregistret (inloggningslänk via e-post eller personlig länk)</option>
               </select>
             </label>
             <label className="field">Navigering
-              <select name="nav_mode" defaultValue={course.nav_mode}>
+              <select key={course.nav_mode} name="nav_mode" defaultValue={course.nav_mode}>
                 <option value="free">Fritt – eleven väljer ordning</option>
                 <option value="linear">Linjärt – avsnitt låses upp i tur och ordning</option>
                 <option value="sweep">Ett svep – hela utbildningen i följd med Nästa</option>
@@ -428,7 +430,7 @@ export default async function EditorPage({
                       <form action={moveSectionToChapter} className="row" style={{ gap: 6, flexWrap: 'nowrap' }} data-namn="Flytta avsnitt till kapitel">
                         <input type="hidden" name="section_id" value={current.id} />
                         <label className="small" htmlFor="flytta-kapitel" style={{ whiteSpace: 'nowrap' }}>Flytta till kapitel</label>
-                        <select id="flytta-kapitel" name="chapter_id" defaultValue={current.chapter.id} style={{ maxWidth: 240, minHeight: 36, padding: '4px 8px' }}>
+                        <select key={current.chapter.id} id="flytta-kapitel" name="chapter_id" defaultValue={current.chapter.id} style={{ maxWidth: 240, minHeight: 36, padding: '4px 8px' }}>
                           {chapters.map((c, i) => (
                             <option key={c.id} value={c.id}>{i + 1}. {c.title}{c.id === current.chapter.id ? ' (nu)' : ''}</option>
                           ))}

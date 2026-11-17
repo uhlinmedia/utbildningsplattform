@@ -193,14 +193,40 @@ with sync_playwright() as p:
     expect(card.locator("form[data-status=sparat]")).to_have_count(1)
     c = json.loads(q(f"select content from block where section_id = '{s1}' and position = 1"))
     assert c.get("layout") == "right" and c.get("size") == "full" and c.get("alt") == "Skärmens inställningar", c
+    # Valet står kvar i rutan efter sparning (React återställer annars formuläret till det gamla värdet)
+    a.wait_for_timeout(800)
+    expect(card.locator("select[name=layout]")).to_have_value("right")
+    expect(card.locator("select[name=size]")).to_have_value("full")
+    expect(a.locator(".unsaved-bar")).to_have_count(0)
+    a.reload()
+    card = a.locator(".block-card:has(select[name=layout])").first
+    expect(card.locator("select[name=layout]")).to_have_value("right")
+    expect(card.locator("select[name=size]")).to_have_value("full")
     card.locator("select[name=layout]").select_option("auto")
     card.locator("select[name=size]").select_option("auto")
     card.get_by_role("button", name="Spara block").click()
     a.wait_for_timeout(1500)
     c = json.loads(q(f"select content from block where section_id = '{s1}' and position = 1"))
     assert "layout" not in c and "size" not in c, c
+    expect(card.locator("select[name=layout]")).to_have_value("auto")
     a.screenshot(path=OUT + "/bild-editor.png")
-    step("editorn: Placering och Storlek sparas (Automatiskt sparas som tomt), hjälptext visar bildens format")
+    step("editorn: Placering och Storlek sparas och står kvar i rutan (Automatiskt sparas som tomt), hjälptext visar bildens format")
+
+    # Samma sak för utbildningens inställningar (rullistan Navigering)
+    a.goto(f"{BASE}/admin/utbildningar/{course}?flik=installningar")
+    nm = a.locator("select[name=nav_mode]")
+    expect(nm).to_have_value("free")
+    nm.select_option("linear")
+    a.locator("form:has(select[name=nav_mode])").get_by_role("button").filter(has_text="Spara").first.click()
+    a.wait_for_function("document.querySelector('form:has(select[name=nav_mode])')?.dataset.status === 'sparat'", timeout=10000)
+    assert q(f"select nav_mode from course where id = '{course}'") == "linear"
+    a.wait_for_timeout(800)
+    expect(a.locator("select[name=nav_mode]")).to_have_value("linear")
+    step("inställningar: vald navigering står kvar i rutan efter sparning")
 
     assert not errors, errors
-    print("ALLA TESTER FÖR BILDBLOCK GICK IGENOM")
+
+# Städa bort testutbildningen, så att andra tester som tar "första utbildningen" hos kunden inte påverkas.
+q(f"delete from course where id = '{course}'")
+q(f"delete from media where id in ('{portrait}', '{square}', '{landscape}')")
+print("ALLA TESTER FÖR BILDBLOCK GICK IGENOM")
