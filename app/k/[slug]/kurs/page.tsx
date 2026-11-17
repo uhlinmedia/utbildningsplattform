@@ -13,6 +13,9 @@ import { SlidesBlock } from './SlidesBlock';
 import { AudioUnlock, SectionAudio } from './SectionAudio';
 import { audioUrl } from '@/lib/audio';
 import { isTooDark } from '@/lib/color';
+import { imageSizes, isTall, type ImageSize } from '@/lib/image-size';
+import type { Block } from '@/lib/types';
+import { ImageZoom } from './ImageZoom';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +55,8 @@ export default async function CoursePage({
   const isLast = idx === flat.length - 1;
   const quizBlocks = current.blocks.filter((b) => b.type === 'quiz');
   const sweep = course.nav_mode === 'sweep';
+  const sizes = await imageSizes(current.blocks.flatMap((b) => (b.type === 'image' && b.content.media_id ? [b.content.media_id] : [])));
+  const groups = layoutBlocks(current.blocks, sizes);
 
   const menu = (
   <ol>
@@ -83,6 +88,82 @@ export default async function CoursePage({
     ))}
   </ol>
   );
+
+  const renderBlock = (b: Block) => {
+    switch (b.type) {
+      case 'text':
+        return <div key={b.id} className="prose" dangerouslySetInnerHTML={{ __html: renderMarkdown(b.content.markdown) }} />;
+      case 'tip':
+        return <p key={b.id} className="tip" style={{ margin: 0 }}>{b.content.text}</p>;
+      case 'image':
+        return b.content.media_id ? (
+          <figure key={b.id} style={{ margin: 0 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/media/${b.content.media_id}`} alt={b.content.alt ?? ''} style={{ borderRadius: 12 }} />
+            {b.content.caption && <figcaption className="small muted" style={{ marginTop: 6 }}>{b.content.caption}</figcaption>}
+          </figure>
+        ) : null;
+      case 'video': {
+        const c = b.content;
+        const provider = c.vimeo_id ? 'vimeo' : c.youtube_id ? 'youtube' : null;
+        if (!provider) return null;
+        return (
+          <VideoBlock
+            key={b.id}
+            slug={slug}
+            blockId={b.id}
+            provider={provider}
+            src={provider === 'vimeo' ? vimeoEmbedUrl(c.vimeo_id!, c.vimeo_hash) : youtubeEmbedUrl(c.youtube_id!, process.env.APP_URL)}
+            title={c.title ?? ''}
+            required={c.required_percent ?? 0}
+            initialPercent={progress.videos.get(b.id) ?? 0}
+          />
+        );
+      }
+      case 'slides': {
+        const slides = b.content.slides ?? [];
+        if (slides.length === 0) return null;
+        return (
+          <SlidesBlock
+            key={b.id}
+            slug={slug}
+            blockId={b.id}
+            slides={slides.map((x) => ({ src: `/media/${x.media_id}`, alt: x.alt ?? '' }))}
+            title={b.content.title ?? ''}
+            caption={b.content.caption ?? ''}
+            requireAll={!!b.content.require_all}
+            initialPercent={progress.videos.get(b.id) ?? 0}
+            cues={current.audio && audioUrl(current.audio.path) ? slides.map((x) => (typeof x.at === 'number' ? x.at : null)) : undefined}
+          />
+        );
+      }
+      case 'quiz': {
+        const q = progress.quizzes.get(b.id);
+        const doneQ = !!q && (q.correct || q.exhausted);
+        return (
+          <QuizBlock
+            key={b.id}
+            slug={slug}
+            blockId={b.id}
+            index={quizBlocks.indexOf(b) + 1}
+            total={quizBlocks.length}
+            question={b.content.question}
+            multi={b.content.kind === 'multi'}
+            options={b.content.options.map((o) => ({ id: o.id, text: o.text }))}
+            initial={{
+              done: doneQ,
+              correct: !!q?.correct,
+              selected: q?.lastSelected ?? [],
+              attemptsLeft: q ? course.max_attempts - q.attempts : course.max_attempts,
+              reveal: doneQ && course.show_answers
+                ? { correctIds: b.content.options.filter((o) => o.correct).map((o) => o.id), explanation: b.content.explanation }
+                : null,
+            }}
+          />
+        );
+      }
+    }
+  };
 
   return (
     <div style={{ ['--brand' as string]: customer?.color }}>
@@ -134,80 +215,20 @@ export default async function CoursePage({
               />
             )}
 
-            {current.blocks.map((b) => {
-              switch (b.type) {
-                case 'text':
-                  return <div key={b.id} className="prose" dangerouslySetInnerHTML={{ __html: renderMarkdown(b.content.markdown) }} />;
-                case 'tip':
-                  return <p key={b.id} className="tip" style={{ margin: 0 }}>{b.content.text}</p>;
-                case 'image':
-                  return b.content.media_id ? (
-                    <figure key={b.id} style={{ margin: 0 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={`/media/${b.content.media_id}`} alt={b.content.alt ?? ''} style={{ borderRadius: 12 }} />
-                      {b.content.caption && <figcaption className="small muted" style={{ marginTop: 6 }}>{b.content.caption}</figcaption>}
-                    </figure>
-                  ) : null;
-                case 'video': {
-                  const c = b.content;
-                  const provider = c.vimeo_id ? 'vimeo' : c.youtube_id ? 'youtube' : null;
-                  if (!provider) return null;
-                  return (
-                    <VideoBlock
-                      key={b.id}
-                      slug={slug}
-                      blockId={b.id}
-                      provider={provider}
-                      src={provider === 'vimeo' ? vimeoEmbedUrl(c.vimeo_id!, c.vimeo_hash) : youtubeEmbedUrl(c.youtube_id!, process.env.APP_URL)}
-                      title={c.title ?? ''}
-                      required={c.required_percent ?? 0}
-                      initialPercent={progress.videos.get(b.id) ?? 0}
-                    />
-                  );
-                }
-                case 'slides': {
-                  const slides = b.content.slides ?? [];
-                  if (slides.length === 0) return null;
-                  return (
-                    <SlidesBlock
-                      key={b.id}
-                      slug={slug}
-                      blockId={b.id}
-                      slides={slides.map((x) => ({ src: `/media/${x.media_id}`, alt: x.alt ?? '' }))}
-                      title={b.content.title ?? ''}
-                      caption={b.content.caption ?? ''}
-                      requireAll={!!b.content.require_all}
-                      initialPercent={progress.videos.get(b.id) ?? 0}
-                      cues={current.audio && audioUrl(current.audio.path) ? slides.map((x) => (typeof x.at === 'number' ? x.at : null)) : undefined}
-                    />
-                  );
-                }
-                case 'quiz': {
-                  const q = progress.quizzes.get(b.id);
-                  const doneQ = !!q && (q.correct || q.exhausted);
-                  return (
-                    <QuizBlock
-                      key={b.id}
-                      slug={slug}
-                      blockId={b.id}
-                      index={quizBlocks.indexOf(b) + 1}
-                      total={quizBlocks.length}
-                      question={b.content.question}
-                      multi={b.content.kind === 'multi'}
-                      options={b.content.options.map((o) => ({ id: o.id, text: o.text }))}
-                      initial={{
-                        done: doneQ,
-                        correct: !!q?.correct,
-                        selected: q?.lastSelected ?? [],
-                        attemptsLeft: q ? course.max_attempts - q.attempts : course.max_attempts,
-                        reveal: doneQ && course.show_answers
-                          ? { correctIds: b.content.options.filter((o) => o.correct).map((o) => o.id), explanation: b.content.explanation }
-                          : null,
-                      }}
-                    />
-                  );
-                }
-              }
+            {groups.map((g) => {
+              if (g.kind === 'block') return renderBlock(g.block);
+              // Stående bild bredvid texten (B50). Smal innehållsyta (mobil, surfplatta på höjden): under varandra.
+              const img = g.image.content;
+              const size = g.size;
+              return (
+                <div key={g.image.id} className="media-split" style={{ ['--ar' as string]: (size.width / size.height).toFixed(4), ['--w' as string]: `${size.width}px` }}>
+                  <figure>
+                    <ImageZoom src={`/media/${img.media_id}`} alt={img.alt ?? ''} width={size.width} height={size.height} />
+                    {img.caption && <figcaption className="small muted">{img.caption}</figcaption>}
+                  </figure>
+                  <div className="media-split-text">{g.text.map(renderBlock)}</div>
+                </div>
+              );
             })}
 
             {krav && !state.requirementsMet && (
@@ -231,4 +252,31 @@ export default async function CoursePage({
       </div>
     </div>
   );
+}
+
+type Group =
+  | { kind: 'block'; block: Block }
+  | { kind: 'split'; image: Extract<Block, { type: 'image' }>; size: ImageSize; text: Block[] };
+
+// Delar upp avsnittets block för visning. En stående (eller nästan kvadratisk) bild får texten bredvid sig:
+// textblocken och tipsen direkt efter bilden, eller – om inga följer – de direkt före. Allt annat visas som förut.
+function layoutBlocks(blocks: Block[], sizes: Map<string, ImageSize | null>): Group[] {
+  const isText = (b: Block | undefined) => !!b && (b.type === 'text' || b.type === 'tip');
+  const out: Group[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    const size = b.type === 'image' && b.content.media_id ? sizes.get(b.content.media_id) : null;
+    if (b.type !== 'image' || !size || !isTall(size)) { out.push({ kind: 'block', block: b }); continue; }
+    const text: Block[] = [];
+    while (isText(blocks[i + 1])) text.push(blocks[++i]);
+    if (text.length === 0) {
+      // Texten före bilden: plocka tillbaka de närmast föregående text-/tipsblocken (inte sådana som redan står bredvid en bild).
+      while (out.length && out[out.length - 1].kind === 'block' && isText((out[out.length - 1] as { block: Block }).block)) {
+        text.unshift((out.pop() as { block: Block }).block);
+      }
+    }
+    if (text.length === 0) out.push({ kind: 'block', block: b });
+    else out.push({ kind: 'split', image: b, size, text });
+  }
+  return out;
 }
