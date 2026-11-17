@@ -9,6 +9,7 @@ import { SlideUploader } from './SlideUploader';
 import { SectionAudio } from './SectionAudio';
 import { SlideCue } from './SlideCue';
 import { SlideReplace } from './SlideReplace';
+import { SlideSortable } from './SlideSortable';
 import { ChapterNode } from './ChapterNode';
 import { audioConfigured, audioUrl } from '@/lib/audio';
 import { markdownToSpeech, TTS_DEFAULT_STYLE, TTS_VOICES, ttsConfigured } from '@/lib/tts';
@@ -152,10 +153,13 @@ function BlockEditor({ block, hasAudio, imgSize = null }: { block: Block; hasAud
             {(block.content.slides ?? []).length === 0 ? (
               <p className="small muted" style={{ margin: 0 }}>Inga bilder än. Lägg till en PDF eller bilder nedan.</p>
             ) : (
-              <ol className="slide-list" aria-label="Bilder i bildspelet">
+              <SlideSortable order={(block.content.slides ?? []).map((x) => x.media_id).join(',')} label="Bilder i bildspelet – dra för att ändra ordning">
                 {(block.content.slides ?? []).map((sl, i, all) => (
                   <li key={sl.media_id}>
-                    <span className="num">{i + 1}</span>
+                    <span className="slide-handle" title="Dra för att flytta bilden">
+                      <svg width="12" height="18" viewBox="0 0 12 18" aria-hidden="true">{[3, 9].flatMap((x) => [3, 9, 15].map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.6" fill="currentColor" />))}</svg>
+                      <span className="num">{i + 1}</span>
+                    </span>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={`/media/${sl.media_id}`} alt="" loading="lazy" />
                     <div className="stack" style={{ gap: 6, minWidth: 0 }}>
@@ -170,7 +174,10 @@ function BlockEditor({ block, hasAudio, imgSize = null }: { block: Block; hasAud
                     </div>
                   </li>
                 ))}
-              </ol>
+              </SlideSortable>
+            )}
+            {(block.content.slides ?? []).length > 1 && (
+              <p className="hint small muted" style={{ margin: 0 }}>Ändra ordning genom att dra i en bild (⠿) och släppa den på ny plats. Pilarna flyttar ett steg i taget.</p>
             )}
             {hasAudio && (block.content.slides ?? []).length > 1 && (
               <p className="hint small muted" style={{ margin: 0 }}>

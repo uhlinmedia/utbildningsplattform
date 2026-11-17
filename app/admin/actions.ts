@@ -584,15 +584,22 @@ export async function updateBlock(fd: FormData) {
       break;
     }
     case 'slides': {
-      // Bildtexter per bild, ordning och borttagning sparas i samma formulär (knapparna skickar op=up:3 osv.).
+      // Bildtexter per bild, ordning och borttagning sparas i samma formulär (knapparna skickar op=up:3 osv.,
+      // dra och släpp skickar op=move:3:7).
       let slides: Slide[] = ((b.content.slides as Slide[] | undefined) ?? []).map((x, i) => ({
         media_id: x.media_id,
         alt: fd.has(`alt_${i}`) ? s(fd, `alt_${i}`).slice(0, 300) : x.alt ?? '',
         ...cueField(fd.has(`at_${i}`) ? parseCue(s(fd, `at_${i}`)) : x.at),
       }));
-      const [op, idxStr] = s(fd, 'op').split(':');
+      const [op, idxStr, toStr] = s(fd, 'op').split(':');
       const idx = Number(idxStr);
       if (Number.isInteger(idx) && idx >= 0 && idx < slides.length) {
+        // Dra och släpp: move:från:till
+        const to = Number(toStr);
+        if (op === 'move' && Number.isInteger(to) && to >= 0 && to < slides.length && to !== idx) {
+          const [moved] = slides.splice(idx, 1);
+          slides.splice(to, 0, moved);
+        }
         if (op === 'up' && idx > 0) [slides[idx - 1], slides[idx]] = [slides[idx], slides[idx - 1]];
         if (op === 'down' && idx < slides.length - 1) [slides[idx + 1], slides[idx]] = [slides[idx], slides[idx + 1]];
         if (op === 'remove') slides = slides.filter((_, i) => i !== idx);

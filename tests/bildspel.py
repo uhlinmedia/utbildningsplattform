@@ -98,6 +98,45 @@ with sync_playwright() as p:
     expect(sl.locator(".slide-list li img").first).to_have_attribute("src", srcs[1])
     expect(sl.locator("input[name=title]")).to_have_value("Presentation om lösenord")
     expect(sl.locator("label:has-text('bläddra igenom alla bilder') input")).to_be_checked()
+
+    # Dra och släpp: dra bild 1 (i greppet) till plats 3; beskrivningen följer med bilden
+    order = [sl.locator(".slide-list li img").nth(i).get_attribute("src") for i in range(4)]
+    alt_first = sl.locator("input[name=alt_0]").input_value()
+    h = sl.locator(".slide-list li").nth(0).locator(".slide-handle").bounding_box()
+    t3 = sl.locator(".slide-list li").nth(2).bounding_box()
+    a.mouse.move(h["x"] + h["width"] / 2, h["y"] + h["height"] / 2)
+    a.mouse.down()
+    for k in range(1, 11):
+        a.mouse.move(h["x"] + h["width"] / 2, h["y"] + h["height"] / 2 + (t3["y"] + t3["height"] * 0.75 - h["y"] - h["height"] / 2) * k / 10)
+    expect(sl.locator(".slide-list li.dragging")).to_have_count(1)
+    a.mouse.up()
+    expected = [order[1], order[2], order[0], order[3]]
+    for i, src in enumerate(expected):
+        expect(sl.locator(".slide-list li img").nth(i)).to_have_attribute("src", src)
+    expect(sl.locator("input[name=alt_2]")).to_have_value(alt_first)
+    expect(sl.locator(".slide-list li.dragging")).to_have_count(0)
+    expect(sl.locator(".slide-list li[style*=translate]")).to_have_count(0)
+    # Upp igen med greppet, men Esc avbryter
+    h = sl.locator(".slide-list li").nth(2).locator(".slide-handle").bounding_box()
+    a.mouse.move(h["x"] + 5, h["y"] + 5); a.mouse.down(); a.mouse.move(h["x"] + 5, h["y"] - 80, steps=5)
+    a.keyboard.press("Escape"); a.mouse.up()
+    a.wait_for_timeout(500)
+    for i, src in enumerate(expected):
+        expect(sl.locator(".slide-list li img").nth(i)).to_have_attribute("src", src)
+    a.reload()
+    sl = a.locator(".block-card:has(.slide-upload)").last
+    for i, src in enumerate(expected):
+        expect(sl.locator(".slide-list li img").nth(i)).to_have_attribute("src", src)
+    expect(sl.locator("input[name=alt_2]")).to_have_value(alt_first)
+    # Tillbaka uppåt: bild 3 till plats 1 (sidan scrollar inte; dra förbi första radens mitt)
+    h = sl.locator(".slide-list li").nth(2).locator("img").bounding_box()
+    t1 = sl.locator(".slide-list li").nth(0).bounding_box()
+    a.mouse.move(h["x"] + 20, h["y"] + h["height"] / 2); a.mouse.down()
+    a.mouse.move(h["x"] + 20, t1["y"] + 5, steps=10); a.mouse.up()
+    for i, src in enumerate(order):
+        expect(sl.locator(".slide-list li img").nth(i)).to_have_attribute("src", src)
+    expect(sl.locator("input[name=alt_0]")).to_have_value(alt_first)
+    step("dra och släpp ändrar ordning (beskrivning följer med), Esc avbryter, sparas")
     expect(a.locator(".unsaved-bar")).to_have_count(0)
     step("bildtext, ordning, borttagning och krav sparas; Enter sparar")
 

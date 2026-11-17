@@ -322,10 +322,18 @@ details:has(form[data-osparad]) > summary::after { content: ' ● ej sparat'; co
 
 /* ---------- Bildspel (admin) ---------- */
 .slide-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.slide-list li { display: grid; grid-template-columns: 28px 120px 1fr auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.slide-list li { display: grid; grid-template-columns: 36px 120px 1fr auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.slide-handle { display: flex; flex-direction: column; align-items: center; gap: 2px; align-self: stretch; justify-content: center; color: #9aa3ad; cursor: grab; touch-action: none; user-select: none; border-radius: 6px; }
+.slide-handle:hover { color: var(--brand); background: var(--brand-soft); }
+.slide-list img { cursor: grab; touch-action: none; -webkit-user-drag: none; user-select: none; }
+.slide-list li { position: relative; }
+.slide-list.sorting li { transition: transform .15s ease; }
+.slide-list.sorting li.dragging { transition: none; z-index: 2; box-shadow: 0 8px 24px rgba(20, 30, 45, .18); border-color: var(--brand); cursor: grabbing; }
+.slide-list.saving { opacity: .7; pointer-events: none; }
+body.slide-sorting, body.slide-sorting * { cursor: grabbing !important; user-select: none !important; }
 .slide-list .num { font-weight: 600; color: var(--muted); text-align: center; }
 .slide-list img { width: 120px; height: 68px; object-fit: contain; background: #f1f3f5; border-radius: 6px; }
-@media (max-width: 640px) { .slide-list li { grid-template-columns: 24px 80px 1fr; } .slide-list li > .row { grid-column: 1 / -1; } .slide-list img { width: 80px; height: 45px; } }
+@media (max-width: 640px) { .slide-list li { grid-template-columns: 32px 80px 1fr; } .slide-list li > .row { grid-column: 1 / -1; } .slide-list img { width: 80px; height: 45px; } }
 .slide-upload { padding: 12px; border: 1px dashed var(--line-strong); border-radius: 10px; background: #fafbfc; }
 
 /* ---------- Konton ---------- */
