@@ -121,23 +121,41 @@ details > summary { cursor: pointer; font-weight: 600; }
 .learn-content > .tip, .learn-content > .quiz, .learn-content > .error { max-width: 820px; }
 .learn-content > figure img { max-height: 85vh; width: auto; }
 .learn-content { container-type: inline-size; }
-/* Stående bild bredvid texten (B50). Under varandra när innehållsytan är smal, bredvid från 720 px. Bildkolumnen
-   blir aldrig bredare än att hela bilden ryms på skärmens höjd (--ar = bredd/höjd) eller bredare än bilden själv (--w). */
-.media-split { display: flex; flex-direction: column; gap: 24px; }
-.media-split > figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.media-split-text { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+/* Bildblock (B50/B51). Eleven kan alltid klicka upp bilden i full storlek (.img-zoom). */
+.img-figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .img-zoom { position: relative; display: block; width: fit-content; max-width: 100%; padding: 0; border: 0; background: none; border-radius: 12px; cursor: zoom-in; }
 .img-zoom img { display: block; width: auto; height: auto; max-width: 100%; max-height: 85vh; border-radius: 12px; }
 .img-zoom:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
-.img-zoom-hint { position: absolute; right: 10px; bottom: 10px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: rgba(20, 32, 43, .6); color: #fff; opacity: 0; transition: opacity .15s; }
+.img-zoom-hint { position: absolute; right: 10px; bottom: 10px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: rgba(20, 32, 43, .6); color: #fff; opacity: .8; transition: opacity .15s, background .15s; }
 .img-zoom-hint svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
-.img-zoom:hover .img-zoom-hint, .img-zoom:focus-visible .img-zoom-hint { opacity: 1; }
-@media (hover: none) { .img-zoom-hint { opacity: .85; } }
+.img-zoom:hover .img-zoom-hint, .img-zoom:focus-visible .img-zoom-hint { opacity: 1; background: var(--brand); }
+/* Vald storlek (Liten/Mellan/Stor/Full bredd): bilden fyller sin bredd, ingen höjdgräns. Smal yta: 50 %, 75 %, 100 %. */
+:is(.img-figure, .media-split):is(.size-s, .size-m, .size-l, .size-full) .img-zoom { width: 100%; }
+:is(.img-figure, .media-split):is(.size-s, .size-m, .size-l, .size-full) .img-zoom img { width: 100%; max-height: none; }
+.img-figure.size-s, .media-split.size-s > .img-figure { width: 50%; }
+.img-figure.size-m, .media-split.size-m > .img-figure { width: 75%; }
+.media-split { display: flex; flex-direction: column; gap: 24px; }
+.media-split-text { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 @container (min-width: 720px) {
-  /* Bildens maxhöjd: skärmhöjden minus sidhuvud och rubrik, så att hela bilden syns direkt när avsnittet öppnas. */
-  .media-split { --img-max: max(360px, calc(100vh - 200px)); display: grid; grid-template-columns: min(45%, calc(var(--img-max) * var(--ar, 1)), var(--w, 100%)) minmax(0, 1fr); gap: 32px; align-items: start; }
-  .media-split > figure { position: sticky; top: 24px; }
-  .media-split .img-zoom img { max-height: var(--img-max); }
+  .img-figure.size-s { width: 33%; }
+  .img-figure.size-m { width: 50%; }
+  .img-figure.size-l { width: 75%; }
+  /* Bild bredvid texten. Automatiskt: bildkolumnen blir aldrig bredare än att hela bilden ryms på skärmen (skärmhöjden
+     minus sidhuvud och rubrik; --ar = bredd/höjd) eller än bilden själv (--w), och bilden står kvar när texten scrollas. */
+  .media-split {
+    --img-max: max(360px, calc(100vh - 200px));
+    --col: min(45%, calc(var(--img-max) * var(--ar, 1)), var(--w, 100%));
+    display: grid; grid-template-columns: var(--col) minmax(0, 1fr); gap: 32px; align-items: start;
+  }
+  .media-split.size-s { --col: 25%; }
+  .media-split.size-m { --col: 35%; }
+  .media-split.size-l { --col: 50%; }
+  .media-split.size-full { --col: 65%; }
+  .media-split[class] > .img-figure { width: auto; } /* [class]: väger tyngre än smal-ytans 50/75 % ovan */
+  .media-split.is-right { grid-template-columns: minmax(0, 1fr) var(--col); }
+  .media-split.is-right > .img-figure { order: 2; }
+  .media-split.size-auto > .img-figure { position: sticky; top: 24px; }
+  .media-split.size-auto .img-zoom img { max-height: var(--img-max); }
 }
 .img-zoom-dialog { width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: rgba(10, 16, 22, .92); }
 .img-zoom-dialog[open] { display: grid; place-items: center; }

@@ -1,11 +1,13 @@
-"""Test av stående bild bredvid texten (B50). Skapar en egen utbildning direkt i databasen (kräver DATABASE_URL,
+"""Test av bildblockens placering och storlek (B50 automatiskt, B51 valt i editorn). Skapar en egen utbildning direkt i databasen (kräver DATABASE_URL,
 körs efter e2e.py som skapar kunden). Kontrollerar:
 - stående bild + text efter: två kolumner på desktop, hela bilden syns utan att scrolla, texten börjar i höjd med bilden
 - bilden står kvar (sticky) när texten scrollas
 - stående bild utan text efter men med text före: texten före hamnar bredvid
 - liggande bild: som förut (ovanför, full bredd)
 - mobil och smal innehållsyta: under varandra, ingen sidledsscroll
-- klick förstorar bilden, Esc stänger"""
+- klick förstorar bilden, Esc stänger
+- B51: Till höger + Mellan, Ovanför för stående bild, Liten ovanför, förstoring på alla bilder, valen sparas i editorn"""
+from konto import login
 import json, os, struct, subprocess, uuid, zlib
 from playwright.sync_api import sync_playwright, expect
 
@@ -54,6 +56,15 @@ s2 = section(2, "Text före bilden", [
     ("image", {"media_id": square, "alt": "Kvadratisk bild"}),
 ])
 
+s3 = section(3, "Valda placeringar", [
+    ("image", {"media_id": landscape, "alt": "Liggande till höger", "layout": "right", "size": "m"}),
+    ("text", {"markdown": "Text till vänster om en liggande bild."}),
+    ("image", {"media_id": portrait, "alt": "Stående ovanför", "layout": "above", "size": "s"}),
+    ("text", {"markdown": "Text under den lilla stående bilden."}),
+    ("image", {"media_id": portrait, "alt": "Stående stor bredvid", "size": "l"}),
+    ("text", {"markdown": "Text bredvid en stor stående bild."}),
+])
+
 with sync_playwright() as p:
     b = p.chromium.launch(args=["--no-sandbox"])
     errors = []
@@ -92,14 +103,14 @@ with sync_playwright() as p:
 
     # Förstora
     e.mouse.wheel(0, -2000); e.wait_for_timeout(200)
-    split.get_by_role("button", name="Visa bilden i full storlek: Skärmens inställningar").click()
-    dlg = e.locator("dialog.img-zoom-dialog")
+    split.get_by_role("button", name="Skärmens inställningar (visa i full storlek)").click()
+    dlg = split.locator("dialog.img-zoom-dialog")
     expect(dlg).to_be_visible()
     big = dlg.locator("img").bounding_box()
     assert big["height"] > ib["height"] - 1 and big["height"] <= 900, big
     e.keyboard.press("Escape")
     expect(dlg).to_be_hidden()
-    split.get_by_role("button", name="Visa bilden i full storlek: Skärmens inställningar").click()
+    split.get_by_role("button", name="Skärmens inställningar (visa i full storlek)").click()
     dlg.get_by_role("button", name="Stäng").click()
     expect(dlg).to_be_hidden()
     step("klick förstorar bilden; Esc och Stäng stänger")
@@ -112,6 +123,37 @@ with sync_playwright() as p:
     assert split2.locator(".media-split-text").bounding_box()["x"] > split2.locator("figure").bounding_box()["x"] + 100
     expect(e.locator(".learn-content > .prose")).to_have_count(0)
     step("kvadratisk bild utan text efter: texten före hamnar bredvid")
+
+    # --- B51: valda placeringar och storlekar ---
+    e.goto(f"{BASE}/k/{slug}/kurs?s={s3}")
+    cw = e.locator(".learn-content").bounding_box()["width"]
+    splits = e.locator(".media-split")
+    expect(splits).to_have_count(2)
+    r = splits.nth(0)
+    rf, rt = r.locator("figure").bounding_box(), r.locator(".media-split-text").bounding_box()
+    assert rf["x"] > rt["x"] + rt["width"], (rf, rt)                   # bilden till höger
+    assert abs(rf["width"] / cw - 0.35) < 0.03, (rf["width"], cw)       # Mellan bredvid text ≈ 35 %
+    step(f"liggande bild Till höger + Mellan: bilden till höger, {rf['width'] / cw:.0%} av bredden")
+    small = e.locator(".learn-content > figure.size-s")
+    expect(small).to_have_count(1)
+    sb = small.bounding_box()
+    assert abs(sb["width"] / cw - 0.33) < 0.03, (sb, cw)
+    assert sb["height"] > sb["width"]
+    step(f"stående bild Ovanför + Liten: ovanför texten, {sb['width'] / cw:.0%} av bredden")
+    big = splits.nth(1)
+    bf = big.locator("figure").bounding_box()
+    assert abs(bf["width"] / cw - 0.50) < 0.03, (bf, cw)
+    assert big.locator("img").bounding_box()["height"] > 900                # Stor: ingen höjdgräns
+    expect(big.locator("figure")).to_have_css("position", "static")         # står inte kvar (kan vara högre än skärmen)
+    step("stående bild Stor bredvid text: halva bredden, ingen höjdgräns, inte sticky")
+    # Förstoring finns på alla bilder, även liggande ovanför texten
+    e.goto(f"{BASE}/k/{slug}/kurs?s={s1}")
+    e.get_by_role("button", name="Liggande bild (visa i full storlek)").click()
+    expect(e.locator("dialog.img-zoom-dialog[open]")).to_have_count(1)
+    e.keyboard.press("Escape")
+    expect(e.locator("dialog.img-zoom-dialog[open]")).to_have_count(0)
+    step("förstoring finns även på liggande bild ovanför texten")
+    e.set_viewport_size({"width": 1440, "height": 900})
 
     # Smal innehållsyta (surfplatta på höjden) och mobil: under varandra, ingen sidledsscroll
     for w, h, name in [(820, 1180, "surfplatta"), (390, 844, "mobil")]:
@@ -126,5 +168,39 @@ with sync_playwright() as p:
         e.screenshot(path=OUT + f"/bild-bredvid-{name}.png")
         step(f"{name}: bild ovanför texten, högst 85 % av skärmhöjden, ingen sidledsscroll")
 
+    # Mobil: valda storlekar blir 50/75/100 %, bilden till höger hamnar ändå ovanför texten
+    e.goto(f"{BASE}/k/{slug}/kurs?s={s3}")
+    cw = e.locator(".learn-content").bounding_box()["width"]
+    r = e.locator(".media-split").nth(0)
+    rf, rt = r.locator("figure").bounding_box(), r.locator(".media-split-text").bounding_box()
+    assert rt["y"] >= rf["y"] + rf["height"] - 1 and abs(rf["width"] / cw - 0.75) < 0.03, (rf, rt, cw)
+    assert abs(e.locator(".learn-content > figure.size-s").bounding_box()["width"] / cw - 0.5) < 0.03
+    assert e.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    step("mobil: Mellan 75 %, Liten 50 %, bild alltid ovanför texten")
+
+    # --- Editorn: placering och storlek sparas ---
+    a = b.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    a.on("pageerror", lambda x: errors.append(str(x)))
+    login(a, BASE)
+    a.goto(f"{BASE}/admin/utbildningar/{course}?s={s1}")
+    card = a.locator(".block-card:has(select[name=layout])").first
+    expect(card).to_contain_text("Bilden är stående (900×1600 px) och visas bredvid texten")
+    expect(card.locator("select[name=layout]")).to_have_value("auto")
+    card.locator("select[name=layout]").select_option("right")
+    card.locator("select[name=size]").select_option("full")
+    expect(a.locator(".unsaved-bar")).to_have_count(1)
+    card.get_by_role("button", name="Spara block").click()
+    expect(card.locator("form[data-status=sparat]")).to_have_count(1)
+    c = json.loads(q(f"select content from block where section_id = '{s1}' and position = 1"))
+    assert c.get("layout") == "right" and c.get("size") == "full" and c.get("alt") == "Skärmens inställningar", c
+    card.locator("select[name=layout]").select_option("auto")
+    card.locator("select[name=size]").select_option("auto")
+    card.get_by_role("button", name="Spara block").click()
+    a.wait_for_timeout(1500)
+    c = json.loads(q(f"select content from block where section_id = '{s1}' and position = 1"))
+    assert "layout" not in c and "size" not in c, c
+    a.screenshot(path=OUT + "/bild-editor.png")
+    step("editorn: Placering och Storlek sparas (Automatiskt sparas som tomt), hjälptext visar bildens format")
+
     assert not errors, errors
-    print("ALLA TESTER FÖR BILD BREDVID TEXT GICK IGENOM")
+    print("ALLA TESTER FÖR BILDBLOCK GICK IGENOM")

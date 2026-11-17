@@ -10,7 +10,12 @@ export type QuizContent = {
 };
 export type TextContent = { markdown: string };
 export type TipContent = { text: string };
-export type ImageContent = { media_id?: string; alt?: string; caption?: string };
+// Placering och storlek för bildblock (B51). Saknas = auto (B50: stående bild bredvid texten, annars ovanför).
+export type ImageLayout = 'auto' | 'above' | 'left' | 'right';
+export type ImageSizeChoice = 'auto' | 's' | 'm' | 'l' | 'full';
+export const IMAGE_LAYOUTS: ImageLayout[] = ['auto', 'above', 'left', 'right'];
+export const IMAGE_SIZES: ImageSizeChoice[] = ['auto', 's', 'm', 'l', 'full'];
+export type ImageContent = { media_id?: string; alt?: string; caption?: string; layout?: ImageLayout; size?: ImageSizeChoice };
 // En videoblock har antingen en Vimeo- eller en YouTube-video. Finns båda används Vimeo.
 export type VideoContent = {
   vimeo_id?: string;

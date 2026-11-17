@@ -10,6 +10,7 @@ import { slugify } from '@/lib/course';
 import { parseVimeo } from '@/lib/vimeo';
 import { parseYouTube } from '@/lib/youtube';
 import type { QuizOption, SectionAudio, Slide } from '@/lib/types';
+import { IMAGE_LAYOUTS, IMAGE_SIZES } from '@/lib/types';
 import { AUDIO_EXT, AUDIO_MAX_BYTES, audioInfo, copyAudio, createUploadUrl, extOf, isAudioPath, removeAudio, uploadAudio } from '@/lib/audio';
 import { synthesize, TTS_MAX_CHARS, TTS_MODEL, TTS_VOICES, TtsError, ttsConfigured } from '@/lib/tts';
 import { aiAccess, fitsQuota, fmtMinutes, recordUsage } from '@/lib/ai-usage';
@@ -549,7 +550,12 @@ export async function updateBlock(fd: FormData) {
       break;
     case 'image': {
       const media = await saveImage(fd.get('image'));
-      content = { media_id: media ?? b.content.media_id, alt: s(fd, 'alt'), caption: s(fd, 'caption') };
+      const layout = IMAGE_LAYOUTS.find((x) => x === s(fd, 'layout')) ?? 'auto';
+      const size = IMAGE_SIZES.find((x) => x === s(fd, 'size')) ?? 'auto';
+      content = {
+        media_id: media ?? b.content.media_id, alt: s(fd, 'alt'), caption: s(fd, 'caption'),
+        ...(layout !== 'auto' ? { layout } : {}), ...(size !== 'auto' ? { size } : {}),
+      };
       break;
     }
     case 'video': {

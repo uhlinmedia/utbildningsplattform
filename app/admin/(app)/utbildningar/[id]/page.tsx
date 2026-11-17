@@ -3,7 +3,8 @@ import { notFound, redirect } from 'next/navigation';
 import { can, requireUser } from '@/lib/access';
 import { getCourseById, getCustomer, getStructure } from '@/lib/course';
 import { sql } from '@/lib/db';
-import type { Block, CertBadge } from '@/lib/types';
+import type { Block, CertBadge, ImageLayout, ImageSizeChoice } from '@/lib/types';
+import { imageSizes, isTall, type ImageSize } from '@/lib/image-size';
 import { SlideUploader } from './SlideUploader';
 import { SectionAudio } from './SectionAudio';
 import { SlideCue } from './SlideCue';
@@ -61,7 +62,21 @@ const typeLabel: Record<Block['type'], string> = {
   text: 'Text', tip: 'Tips-ruta', image: 'Bild', video: 'Video', slides: 'Bildspel (PDF/PPT)', quiz: 'Kontrollfråga',
 };
 
-function BlockEditor({ block, hasAudio }: { block: Block; hasAudio: boolean }) {
+const LAYOUT_LABEL: Record<ImageLayout, string> = {
+  auto: 'Automatiskt', above: 'Ovanför texten', left: 'Till vänster om texten', right: 'Till höger om texten',
+};
+const SIZE_LABEL: Record<ImageSizeChoice, string> = {
+  auto: 'Automatiskt (hela bilden syns)', s: 'Liten (⅓)', m: 'Mellan (½)', l: 'Stor (¾)', full: 'Full bredd',
+};
+
+// Vad "Automatiskt" betyder för just den här bilden, så att valet blir begripligt i editorn.
+function autoHint(size: ImageSize | null) {
+  if (!size) return 'Stående bilder visas bredvid texten, liggande ovanför.';
+  const kind = isTall(size) ? 'stående' : 'liggande';
+  return `Bilden är ${kind} (${size.width}×${size.height} px) och visas ${isTall(size) ? 'bredvid texten' : 'ovanför texten'} med Automatiskt.`;
+}
+
+function BlockEditor({ block, hasAudio, imgSize = null }: { block: Block; hasAudio: boolean; imgSize?: ImageSize | null }) {
   return (
     <div className="block-card">
       <div className="block-head">
@@ -91,6 +106,22 @@ function BlockEditor({ block, hasAudio }: { block: Block; hasAudio: boolean }) {
             </label>
             <label className="field">Alt-text (beskrivning för skärmläsare)<input type="text" name="alt" defaultValue={block.content.alt ?? ''} /></label>
             <label className="field">Bildtext (valfri)<input type="text" name="caption" defaultValue={block.content.caption ?? ''} /></label>
+            <div className="row img-options" style={{ alignItems: 'flex-start' }}>
+              <label className="field">Placering
+                <select name="layout" defaultValue={block.content.layout ?? 'auto'}>
+                  {(Object.keys(LAYOUT_LABEL) as ImageLayout[]).map((k) => <option key={k} value={k}>{LAYOUT_LABEL[k]}</option>)}
+                </select>
+              </label>
+              <label className="field">Storlek
+                <select name="size" defaultValue={block.content.size ?? 'auto'}>
+                  {(Object.keys(SIZE_LABEL) as ImageSizeChoice[]).map((k) => <option key={k} value={k}>{SIZE_LABEL[k]}</option>)}
+                </select>
+              </label>
+            </div>
+            <p className="hint small muted" style={{ margin: 0 }}>
+              {autoHint(imgSize)} Till vänster/höger kräver text direkt efter (eller före) bilden; på mobil hamnar bild och text alltid under varandra.
+              Bredvid text blir Liten–Full bredd en fjärdedel till två tredjedelar av bredden. Eleven kan alltid klicka upp bilden i full storlek.
+            </p>
           </>
         )}
         {block.type === 'video' && (
@@ -211,6 +242,7 @@ export default async function EditorPage({
   const chapters = await getStructure(id);
   const allSections = chapters.flatMap((c) => c.sections.map((x) => ({ ...x, chapter: c })));
   const current = allSections.find((x) => x.id === s) ?? allSections[0];
+  const imgSizes = await imageSizes((current?.blocks ?? []).flatMap((b) => (b.type === 'image' && b.content.media_id ? [b.content.media_id] : [])));
   const settingsTab = flik === 'installningar';
 
   return (
@@ -427,7 +459,7 @@ export default async function EditorPage({
                       : `Kvar denna månad: ${fmtMinutes(ai.remainingSeconds ?? 0)} av ${ai.quotaMinutes} min`,
                   } : null}
                 />
-                {current.blocks.map((b) => <BlockEditor key={b.id} block={b} hasAudio={!!current.audio} />)}
+                {current.blocks.map((b) => <BlockEditor key={b.id} block={b} hasAudio={!!current.audio} imgSize={b.type === 'image' && b.content.media_id ? imgSizes.get(b.content.media_id) ?? null : null} />)}
                 <div className="card stack" style={{ borderStyle: 'dashed', gap: 10 }}>
                   <span className="small muted">Lägg till block</span>
                   <div className="row" style={{ gap: 8 }}>

@@ -48,11 +48,16 @@ python3 tests/speakerljud-autostart.py  # automatisk start av speakerrösten, sa
 python3 tests/bildspel-ljud.py     # bildspel som följer speakerrösten, samma förutsättningar
 python3 tests/ai-rost.py          # AI-uppläsning (kräver även node tests/fake-gemini.mjs, se filen)
 python3 tests/bildspel-byt.py      # byt enskild bild i bildspel (bild eller PDF-sida), körs efter bildspel.py
-python3 tests/bild-bredvid.py      # stående bild bredvid texten, körs efter e2e.py (behöver DATABASE_URL)
+python3 tests/bild-bredvid.py      # bildblockens placering och storlek, körs efter e2e.py (behöver DATABASE_URL)
 ```
 
-## Stående bilder
-En stående eller nästan kvadratisk bild (höjd ≥ 90 % av bredden) visas till vänster om texten när innehållsytan är minst 720 px bred: textblocken och tipsen direkt efter bilden, eller – om inga följer – de direkt före. Bilden får högst skärmens höjd minus 200 px, står kvar när texten scrollas och kan klickas upp i full storlek. Smalare ytor (mobil, surfplatta på höjden) visar bild och text under varandra. Bildens storlek läses från filens början på servern (`lib/image-size.ts`) och sparas i minnet. Ingen databasändring.
+## Bilder: placering och storlek
+Varje bildblock har **Placering** (Automatiskt, Ovanför texten, Till vänster/höger om texten) och **Storlek** (Automatiskt, Liten ⅓, Mellan ½, Stor ¾, Full bredd). Automatiskt sparas som tomt.
+- **Placering Automatiskt:** en stående eller nästan kvadratisk bild (höjd ≥ 90 % av bredden) visas till vänster om texten, andra ovanför. Vänster/höger tar textblocken och tipsen direkt efter bilden, eller – om inga följer – de direkt före; finns ingen text där visas bilden ovanför.
+- **Storlek Automatiskt:** hela bilden syns på skärmen (ovanför: högst 85 % av skärmhöjden; bredvid: högst skärmhöjden minus 200 px och bilden står kvar när texten scrollas). Vald storlek = andel av bredden utan höjdgräns (bredvid text: 25/35/50/65 %).
+- Två kolumner först när innehållsytan är minst 720 px (container query); smalare ytor visar bild och text under varandra, Liten/Mellan blir 50/75 %.
+- Eleven kan alltid klicka upp bilden i full storlek (`ImageZoom.tsx`, `<dialog>`).
+- Bildens storlek läses ur filens början på servern (`lib/image-size.ts`) och sparas i minnet. Ingen databasändring.
 
 ## Bildspel
 Blocket *Bildspel (PDF/PPT)* visar flera bilder i samma yta med pilar, tangentbord, svep och helskärm. En PDF görs om till en bild per sida **i adminens webbläsare** (pdf.js, 1920 px breda JPG), och varje sida laddas upp för sig så att storleksgränsen för serveranrop aldrig nås. PowerPoint sparas först som PDF. Valfritt krav: eleven måste bläddra igenom alla bilder (sparas i `video_progress` som 100 %).

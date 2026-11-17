@@ -96,13 +96,7 @@ export default async function CoursePage({
       case 'tip':
         return <p key={b.id} className="tip" style={{ margin: 0 }}>{b.content.text}</p>;
       case 'image':
-        return b.content.media_id ? (
-          <figure key={b.id} style={{ margin: 0 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`/media/${b.content.media_id}`} alt={b.content.alt ?? ''} style={{ borderRadius: 12 }} />
-            {b.content.caption && <figcaption className="small muted" style={{ marginTop: 6 }}>{b.content.caption}</figcaption>}
-          </figure>
-        ) : null;
+        return b.content.media_id ? <ImageFigure key={b.id} block={b} size={sizes.get(b.content.media_id) ?? null} sized /> : null;
       case 'video': {
         const c = b.content;
         const provider = c.vimeo_id ? 'vimeo' : c.youtube_id ? 'youtube' : null;
@@ -217,15 +211,16 @@ export default async function CoursePage({
 
             {groups.map((g) => {
               if (g.kind === 'block') return renderBlock(g.block);
-              // Stående bild bredvid texten (B50). Smal innehållsyta (mobil, surfplatta på höjden): under varandra.
-              const img = g.image.content;
+              // Bild bredvid texten (B50/B51). Smal innehållsyta (mobil, surfplatta på höjden): under varandra.
               const size = g.size;
+              const chosen = g.image.content.size ?? 'auto';
               return (
-                <div key={g.image.id} className="media-split" style={{ ['--ar' as string]: (size.width / size.height).toFixed(4), ['--w' as string]: `${size.width}px` }}>
-                  <figure>
-                    <ImageZoom src={`/media/${img.media_id}`} alt={img.alt ?? ''} width={size.width} height={size.height} />
-                    {img.caption && <figcaption className="small muted">{img.caption}</figcaption>}
-                  </figure>
+                <div
+                  key={g.image.id}
+                  className={`media-split size-${chosen}${g.side === 'right' ? ' is-right' : ''}`}
+                  style={size ? { ['--ar' as string]: (size.width / size.height).toFixed(4), ['--w' as string]: `${size.width}px` } : undefined}
+                >
+                  <ImageFigure block={g.image} size={size} />
                   <div className="media-split-text">{g.text.map(renderBlock)}</div>
                 </div>
               );
@@ -254,19 +249,36 @@ export default async function CoursePage({
   );
 }
 
+type ImageBlock = Extract<Block, { type: 'image' }>;
 type Group =
   | { kind: 'block'; block: Block }
-  | { kind: 'split'; image: Extract<Block, { type: 'image' }>; size: ImageSize; text: Block[] };
+  | { kind: 'split'; image: ImageBlock; size: ImageSize | null; side: 'left' | 'right'; text: Block[] };
 
-// Delar upp avsnittets block för visning. En stående (eller nästan kvadratisk) bild får texten bredvid sig:
-// textblocken och tipsen direkt efter bilden, eller – om inga följer – de direkt före. Allt annat visas som förut.
+// Bildblock: figur med bild som kan förstoras och ev. bildtext. sized = storleksklass för bild ovanför texten
+// (bredvid texten styrs bredden av kolumnen i .media-split).
+function ImageFigure({ block, size, sized = false }: { block: ImageBlock; size: ImageSize | null; sized?: boolean }) {
+  const c = block.content;
+  return (
+    <figure className={`img-figure${sized ? ` size-${c.size ?? 'auto'}` : ''}`}>
+      <ImageZoom src={`/media/${c.media_id}`} alt={c.alt ?? ''} width={size?.width} height={size?.height} />
+      {c.caption && <figcaption className="small muted">{c.caption}</figcaption>}
+    </figure>
+  );
+}
+
+// Delar upp avsnittets block för visning. En bild placeras bredvid texten när redaktören valt vänster/höger, eller
+// automatiskt när bilden är stående (B50). Texten är textblocken och tipsen direkt efter bilden, eller – om inga
+// följer – de direkt före. Utan text i närheten, eller med "Ovanför texten", visas bilden som förut.
 function layoutBlocks(blocks: Block[], sizes: Map<string, ImageSize | null>): Group[] {
   const isText = (b: Block | undefined) => !!b && (b.type === 'text' || b.type === 'tip');
   const out: Group[] = [];
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
-    const size = b.type === 'image' && b.content.media_id ? sizes.get(b.content.media_id) : null;
-    if (b.type !== 'image' || !size || !isTall(size)) { out.push({ kind: 'block', block: b }); continue; }
+    if (b.type !== 'image' || !b.content.media_id) { out.push({ kind: 'block', block: b }); continue; }
+    const size = sizes.get(b.content.media_id) ?? null;
+    const layout = b.content.layout ?? 'auto';
+    const side = layout === 'left' || layout === 'right' ? layout : layout === 'auto' && isTall(size) ? 'left' : null;
+    if (!side) { out.push({ kind: 'block', block: b }); continue; }
     const text: Block[] = [];
     while (isText(blocks[i + 1])) text.push(blocks[++i]);
     if (text.length === 0) {
@@ -276,7 +288,7 @@ function layoutBlocks(blocks: Block[], sizes: Map<string, ImageSize | null>): Gr
       }
     }
     if (text.length === 0) out.push({ kind: 'block', block: b });
-    else out.push({ kind: 'split', image: b, size, text });
+    else out.push({ kind: 'split', image: b, size, side, text });
   }
   return out;
 }
