@@ -21,7 +21,7 @@ with sync_playwright() as p:
 
     tree = a.locator(".editor-tree")
     def tree_text(): return re.sub(r"\s+", " ", tree.inner_text())
-    chapters = a.locator(".editor-tree summary.tree-ch")
+    chapters = a.locator(".editor-tree .tree-ch-name")
     assert chapters.count() >= 2, "testet behöver minst två kapitel"
     secs = a.locator("a.tree-sec")
     first_name = re.sub(r"^\d+\.\d+ ", "", secs.first.inner_text())
@@ -36,9 +36,10 @@ with sync_playwright() as p:
     sel.select_option(index=1)
     expect(a.locator(".unsaved-bar")).to_contain_text("Flytta avsnitt")
     a.get_by_role("button", name="Flytta", exact=True).click()
-    expect(a.locator("span.small.muted", has_text="Kapitel:")).to_contain_text(chapters.nth(1).inner_text().split(". ", 1)[1])
+    ch2_name = chapters.nth(1).inner_text().split(". ", 1)[1]
+    expect(a.locator("input[name=chapter_title]")).to_have_value("" if ch2_name == "Nytt kapitel" else ch2_name)
     # Avsnittet ligger nu sist i kapitel 2, med samma id och alla block kvar
-    ch2 = a.locator(".editor-tree > div").nth(1)
+    ch2 = a.locator(".editor-tree .tree-chapter").nth(1)
     expect(ch2.locator("a.tree-sec").last).to_contain_text(first_name)
     expect(ch2.locator("a.tree-sec").last).to_have_attribute("href", re.compile(sec_id))
     assert a.locator(".block-card").count() == blocks_before

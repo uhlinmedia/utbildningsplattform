@@ -347,6 +347,19 @@ export async function renameItem(fd: FormData) {
   done();
 }
 
+// Kapitlets och avsnittets namn sparas tillsammans från avsnittets rubrikruta. Tomt fält = behåll namnet.
+export async function renameChapterSection(fd: FormData) {
+  const chapterId = s(fd, 'chapter_id');
+  const sectionId = s(fd, 'section_id');
+  await authorize('chapter', chapterId, 'edit');
+  await authorize('section', sectionId, 'edit');
+  const chapterTitle = s(fd, 'chapter_title');
+  const sectionTitle = s(fd, 'section_title');
+  if (chapterTitle) await sql`update chapter set title = ${chapterTitle} where id = ${chapterId}`;
+  if (sectionTitle) await sql`update section set title = ${sectionTitle} where id = ${sectionId} and chapter_id = ${chapterId}`;
+  done();
+}
+
 export async function deleteItem(fd: FormData) {
   const tbl = s(fd, 'table');
   if (!['chapter', 'section', 'block'].includes(tbl)) return;

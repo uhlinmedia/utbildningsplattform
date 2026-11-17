@@ -93,6 +93,16 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .editor-tree { flex: 1 1 240px; max-width: 300px; }
 .editor-main { flex: 999 1 480px; min-width: 0; }
 .tree-ch { font-weight: 600; font-size: 14px; }
+.tree-ch-row { display: flex; align-items: center; gap: 2px; }
+.tree-toggle { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 30px; padding: 0; border: 0; border-radius: 6px; background: none; color: #6b7480; cursor: pointer; }
+.tree-toggle:hover, .tree-toggle:focus-visible { background: var(--brand-soft); color: var(--brand); }
+.tree-toggle svg { transition: transform .15s; }
+.tree-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+.tree-ch-name { flex: 1; min-width: 0; padding: 5px 6px; border: 0; border-radius: 6px; background: none; font: inherit; font-weight: 600; font-size: 14px; text-align: left; color: var(--ink); cursor: pointer; overflow-wrap: anywhere; }
+.tree-ch-name:hover, .tree-ch-name.active { background: #f1f3f5; }
+.tree-count { font-weight: 400; color: #6b7480; }
+.tree-ch-settings { margin: 4px 0 8px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #fafbfc; }
+.name-form .needs-name input { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
 .tree-sec { display: block; padding: 7px 10px; margin-left: 14px; font-size: 13px; border-radius: 6px; text-decoration: none; color: #3a4452; }
 .tree-sec.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
 .block-card { border: 1px solid var(--line); border-radius: 12px; background: #fff; }

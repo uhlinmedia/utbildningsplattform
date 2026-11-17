@@ -31,8 +31,10 @@ with sync_playwright() as p:
     a.goto(f"{BASE}/admin/utbildningar/{course_id}?s={sec}")
     card = a.locator(".card", has_text="Speakerröst")
     panel = card.locator("details.ai-voice")
-    expect(panel).to_have_attribute("open", "")
+    # Panelen är stängd tills man vill använda den
+    expect(panel).not_to_have_attribute("open", "")
     expect(panel.locator("summary")).to_have_text("Skapa röst från text (AI-uppläsning)")
+    panel.locator("summary").click()
     prefilled = panel.locator("textarea[name=ai_text]").input_value()
     assert prefilled.strip(), "texten ska vara förifylld med avsnittets text"
     assert "**" not in prefilled and "#" not in prefilled, prefilled

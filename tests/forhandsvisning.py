@@ -60,7 +60,7 @@ with sync_playwright() as p:
             name = re.sub(r"^\d+\.\d+ ", "", secs.nth(i).inner_text())
             secs.nth(i).click()
             expect(secs.nth(i)).to_have_class(re.compile("active"))
-            expect(a.locator("input[aria-label='Avsnittets rubrik']")).to_have_value(name)
+            expect(a.locator("input[name=section_title]")).to_have_value("" if name == "Nytt avsnitt" else name)
             a.wait_for_timeout(300)
             expect(bar).to_have_count(0)
             expect(leave_box).not_to_be_visible()

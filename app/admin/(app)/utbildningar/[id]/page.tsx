@@ -9,11 +9,12 @@ import { SlideUploader } from './SlideUploader';
 import { SectionAudio } from './SectionAudio';
 import { SlideCue } from './SlideCue';
 import { SlideReplace } from './SlideReplace';
+import { ChapterNode } from './ChapterNode';
 import { audioConfigured, audioUrl } from '@/lib/audio';
 import { markdownToSpeech, TTS_DEFAULT_STYLE, TTS_VOICES, ttsConfigured } from '@/lib/tts';
 import { aiAccess, fmtMinutes } from '@/lib/ai-usage';
 import {
-  addBlock, addChapter, addSection, deleteCourse, deleteItem, moveItem, moveSectionToChapter, renameItem, setCourseStatus, updateBlock,
+  addBlock, addChapter, addSection, deleteCourse, deleteItem, moveItem, moveSectionToChapter, renameChapterSection, renameItem, setCourseStatus, updateBlock,
   updateCourseSettings,
 } from '../../../actions';
 
@@ -384,18 +385,25 @@ export default async function EditorPage({
         <div className="editor">
           <aside className="editor-tree card stack" aria-label="Struktur" style={{ gap: 10 }}>
             {chapters.map((ch, ci) => (
-              <div key={ch.id} className="stack" style={{ gap: 4 }}>
-                <details>
-                  <summary className="tree-ch">{ci + 1}. {ch.title}</summary>
-                  <div className="stack" style={{ gap: 8, padding: '8px 0' }}>
+              <ChapterNode
+                key={ch.id}
+                courseId={id}
+                chapterId={ch.id}
+                label={`${ci + 1}. ${ch.title}`}
+                sectionCount={ch.sections.length}
+                hasCurrent={ch.sections.some((x) => x.id === current?.id)}
+                settings={
+                  <div className="stack" style={{ gap: 8 }}>
                     <form action={renameItem} className="row" style={{ gap: 6, flexWrap: 'nowrap' }} data-namn={`Kapitelnamn (kapitel ${ci + 1})`}>
                       <input type="hidden" name="table" value="chapter" /><input type="hidden" name="id" value={ch.id} />
-                      <input type="text" name="title" defaultValue={ch.title} aria-label="Kapitlets namn" />
+                      {/* key = sparat namn: namnet kan ändras från avsnittets namnruta, och då ska fältet här visa det nya. */}
+                      <input key={ch.title} type="text" name="title" defaultValue={ch.title} aria-label="Kapitlets namn" />
                       <button className="btn btn-sm" type="submit">Spara</button>
                     </form>
                     <MoveDelete table="chapter" id={ch.id} label="kapitlet" />
                   </div>
-                </details>
+                }
+              >
                 {ch.sections.map((se, si) => (
                   <Link key={se.id} href={`/admin/utbildningar/${id}?s=${se.id}`} className={`tree-sec ${current?.id === se.id ? 'active' : ''}`}>
                     {ci + 1}.{si + 1} {se.title}
@@ -405,7 +413,7 @@ export default async function EditorPage({
                   <input type="hidden" name="chapter_id" value={ch.id} />
                   <button className="btn-link small" type="submit" style={{ marginLeft: 24 }}>+ Avsnitt</button>
                 </form>
-              </div>
+              </ChapterNode>
             ))}
             <form action={addChapter}>
               <input type="hidden" name="course_id" value={id} />
@@ -418,11 +426,18 @@ export default async function EditorPage({
               <>
                 {/* key: rubrikfältet byggs om vid byte av avsnitt, annars ligger förra avsnittets rubrik kvar i fältet */}
                 <div key={current.id} className="card stack" style={{ gap: 10 }}>
-                  <span className="small muted">Kapitel: {current.chapter.title}</span>
-                  <form action={renameItem} className="row" style={{ flexWrap: 'nowrap' }} data-namn="Avsnittets rubrik">
-                    <input type="hidden" name="table" value="section" /><input type="hidden" name="id" value={current.id} />
-                    <input type="text" name="title" defaultValue={current.title} aria-label="Avsnittets rubrik" style={{ fontSize: 20, fontWeight: 600 }} />
-                    <button className="btn btn-sm" type="submit">Spara rubrik</button>
+                  {/* Kapitlets och avsnittets namn i samma formulär, så att ett nytt kapitel inte blir kvar som "Nytt kapitel".
+                      Standardnamnen visas som tomt fält med platshållare, så att man kan skriva direkt. */}
+                  <form action={renameChapterSection} className="stack name-form" style={{ gap: 10 }} data-namn="Kapitel- och avsnittsnamn">
+                    <input type="hidden" name="chapter_id" value={current.chapter.id} /><input type="hidden" name="section_id" value={current.id} />
+                    <label className={`field ${current.chapter.title === 'Nytt kapitel' ? 'needs-name' : ''}`}>Kapitel
+                      {current.chapter.title === 'Nytt kapitel' && <span className="hint">Ge kapitlet ett namn – det visas för eleven i menyn.</span>}
+                      <input key={current.chapter.title} type="text" name="chapter_title" defaultValue={current.chapter.title === 'Nytt kapitel' ? '' : current.chapter.title} placeholder="Kapitlets namn" />
+                    </label>
+                    <label className={`field ${current.title === 'Nytt avsnitt' ? 'needs-name' : ''}`}>Avsnitt
+                      <input key={current.title} type="text" name="section_title" defaultValue={current.title === 'Nytt avsnitt' ? '' : current.title} placeholder="Avsnittets rubrik" style={{ fontSize: 20, fontWeight: 600 }} />
+                    </label>
+                    <div><button className="btn btn-sm" type="submit">Spara namn</button></div>
                   </form>
                   <div className="row between" style={{ gap: 8 }}>
                     <MoveDelete table="section" id={current.id} label="avsnittet" />

@@ -87,6 +87,18 @@ with sync_playwright() as p:
     # Kapitel 2 med bild och fråga med flera rätt
     a.click("text=+ Kapitel")
     a.wait_for_url(re.compile(r"\?s="))
+    # Nytt kapitel: namnfälten för kapitel och avsnitt är tomma och markerade, och sparas tillsammans
+    expect(a.locator("input[name=chapter_title]")).to_have_value("")
+    expect(a.locator(".needs-name input[name=chapter_title]")).to_be_visible()
+    expect(a.locator("details.ai-voice[open]")).to_have_count(0)
+    a.fill("input[name=chapter_title]", "Släckutrustning")
+    a.fill("input[name=section_title]", "Brandsläckare och brandfilt")
+    a.get_by_role("button", name="Spara namn").click()
+    expect(a.locator(".editor-tree")).to_contain_text("2. Släckutrustning")
+    expect(a.locator(".editor-tree")).to_contain_text("2.1 Brandsläckare och brandfilt")
+    expect(a.locator("input[name=chapter_title]")).to_have_value("Släckutrustning")
+    expect(a.locator(".needs-name")).to_have_count(0)
+    step("nytt kapitel: kapitel- och avsnittsnamn anges och sparas tillsammans ovanför avsnittet")
     a.get_by_role("button", name="Bild", exact=True).click()
     a.wait_for_selector("input[name=image]")
     a.set_input_files("input[name=image]", pic)

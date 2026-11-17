@@ -199,7 +199,7 @@ export function SectionAudio({ sectionId, current, configured, ai = null }: { se
             {busy && !aiRun && <span className="small muted" role="status">{busy}</span>}
           </div>
           {ai && (
-            <details className="ai-voice" open={!current}>
+            <details className="ai-voice">
               <summary>{current ? 'Skapa om med AI-uppläsning' : 'Skapa röst från text (AI-uppläsning)'}</summary>
               <div className="stack" style={{ gap: 10, marginTop: 10 }}>
                 <label className="field">Text som läses upp

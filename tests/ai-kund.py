@@ -89,6 +89,7 @@ with sync_playwright() as pw:
     ut.goto(f"{BASE}/admin/utbildningar/{course}?s={sec}")
     panel = ut.locator(".card", has_text="Speakerröst").locator("details.ai-voice")
     expect(panel).to_be_visible()
+    panel.locator("summary").click()
     expect(panel.locator(".ai-quota")).to_have_text("Kvar denna månad: 1 av 1 min")
     panel.locator("textarea[name=ai_text]").fill("Hej och välkommen till kursen. Det här är ett test av AI-rösten.")
     panel.get_by_role("button", name="Skapa AI-röst").click()
